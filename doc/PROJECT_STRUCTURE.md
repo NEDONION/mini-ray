@@ -1,540 +1,508 @@
 # Mini-Ray 项目结构说明
 
-这个文档详细说明了 Mini-Ray 项目的目录组织和文件用途。
+> **最后更新**: 2024-12-06 (Phase 2.5 重构后)
+>
+> 本文档详细说明 Mini-Ray 项目的目录组织和文件用途。
+
+---
 
 ## 📂 完整目录树
 
 ```
 mini-ray/                           # 项目根目录
 ├── README.md                       # 项目主文档（快速开始指南）
-├── PROJECT_STRUCTURE.md            # 本文件（项目结构详解）
+├── REFACTORING_SUMMARY.md          # Phase 2.5 重构总结
 ├── .gitignore                      # Git 忽略配置
 ├── setup.py                        # Python 包安装和 C++ 构建配置
 ├── CMakeLists.txt                  # CMake 顶层配置
 │
 ├── doc/                            # 📚 文档目录
-│   ├── DESIGN.md                   # 系统架构设计文档（核心）
-│   ├── IMPORT_GUIDE.md             # 模块导入机制说明
-│   ├── TROUBLESHOOTING.md          # 常见问题排查
-│   └── GIT_GUIDE.md                # Git 使用指南
+│   ├── README.md                   # 文档索引（本目录导航）
+│   ├── DESIGN.md                   # 系统架构设计文档
+│   ├── CMAKE_GUIDE.md              # CMake 构建系统详解
+│   ├── PROJECT_STRUCTURE.md        # 本文件（项目结构详解）
+│   ├── PHASE1_SUMMARY.md           # Phase 1 完成总结
+│   ├── PHASE2_GUIDE.md             # Phase 2 实现指南
+│   └── PHASE3_DESIGN.md            # Phase 3 设计文档
 │
-├── cpp/                            # 🔧 C++ 核心代码
+├── cpp/                            # 🔧 C++ 核心层
 │   ├── CMakeLists.txt              # C++ 构建配置
-│   ├── include/                    # C++ 头文件
-│   │   └── miniray/
-│   │       ├── common/
-│   │       │   ├── id.h            # ObjectID, TaskID 等 ID 类
-│   │       │   └── object_ref.h    # ObjectRef（Future 引用）
-│   │       ├── object_store/
-│   │       │   └── object_store.h  # ObjectStore 核心
-│   │       ├── scheduler/
-│   │       │   └── scheduler.h     # 任务调度器
-│   │       └── core_worker/
-│   │           └── core_worker.h   # Worker 核心组件
-│   └── src/                        # C++ 实现文件
-│       ├── common/
-│       │   ├── id.cpp
-│       │   └── object_ref.cpp
-│       ├── object_store/
+│   ├── include/miniray/            # 头文件目录
+│   │   ├── common/                 # 通用基础设施
+│   │   │   ├── id.h                # ObjectID 实现
+│   │   │   ├── object_ref.h        # ObjectRef 实现
+│   │   │   ├── task.h              # Task 数据结构
+│   │   │   ├── buffer.h            # Buffer 数据结构
+│   │   │   └── memory.h            # 共享内存管理（NEW）
+│   │   ├── object_store/           # 对象存储模块（NEW）
+│   │   │   └── object_store.h      # ObjectStore 实现
+│   │   ├── raylet/                 # 调度器模块（NEW）
+│   │   │   └── scheduler.h         # Scheduler 实现
+│   │   └── core_worker/            # CoreWorker
+│   │       └── core_worker.h       # CoreWorker 实现
+│   └── src/                        # 实现文件目录
+│       ├── common/                 # 通用模块实现
+│       │   └── memory.cpp          # 共享内存实现（NEW）
+│       ├── object_store/           # 对象存储实现（NEW）
 │       │   └── object_store.cpp
-│       ├── scheduler/
+│       ├── raylet/                 # 调度器实现（NEW）
 │       │   └── scheduler.cpp
-│       ├── core_worker/
+│       ├── core_worker/            # CoreWorker 实现
 │       │   └── core_worker.cpp
-│       └── python_bindings.cpp     # pybind11 Python 绑定
+│       └── python_bindings.cpp     # pybind11 绑定层
 │
-├── python/                         # 🐍 Python 包目录
-│   └── miniray/                    # miniray 包
-│       ├── __init__.py             # 包入口（导入和导出 API）
-│       ├── _miniray_core.so        # C++ 编译生成的扩展模块（.gitignore）
-│       ├── api.py                  # Python API 层（init, get, remote 等）
-│       ├── actor.py                # Actor 实现
-│       ├── scheduler.py            # 调度器 Python 封装
-│       └── core.py                 # 纯 Python 实现（备用）
+├── python/miniray/                 # 🐍 Python API 层
+│   ├── __init__.py                 # 包初始化
+│   ├── api.py                      # 用户 API (@ray.remote, ray.get)
+│   ├── core.py                     # 核心功能封装
+│   ├── actor.py                    # Actor 模型 (Phase 3)
+│   ├── scheduler.py                # 调度器包装
+│   ├── worker.py                   # Worker 进程逻辑
+│   ├── _private/                   # 内部实现（不暴露给用户）
+│   └── _miniray_core.*.so          # C++ 编译产物（动态库）
 │
-├── examples/                       # 📖 示例代码
-│   ├── 01_phase1_object_store.py   # Phase 1: ObjectStore 使用示例
-│   ├── 02_actor.py                 # Phase 2: Actor 使用示例
-│   └── 03_mapreduce.py             # Phase 3: MapReduce 示例
-│
-├── tests/                          # 🧪 单元测试（pytest）
-│   ├── README.md                   # 测试说明文档
+├── tests/                          # 🧪 测试目录
+│   ├── __init__.py                 # 测试包初始化
 │   ├── conftest.py                 # pytest 配置和 fixtures
-│   ├── test_object_store.py        # ObjectStore 功能测试
-│   ├── test_bindings.py            # pybind11 绑定测试
-│   └── test_cpp_core.py            # 旧版测试（手动运行）
+│   ├── test_object_store.py        # 对象存储测试（8 个测试）
+│   ├── test_scheduler.py           # 调度器测试（6 个测试）
+│   ├── demo_phase1.py              # Phase 1 演示脚本
+│   ├── demo_phase2.py              # Phase 2 演示脚本
+│   └── demo_shared_memory.py       # 共享内存演示脚本
 │
-├── test_phase1.py                  # ✅ Phase 1 验收测试（项目根目录）
+├── examples/                       # 📝 示例目录
+│   ├── README.md                   # 示例说明文档
+│   ├── __init__.py
+│   ├── 01_object_store.py          # 对象存储基础示例
+│   ├── 02_scheduler.py             # 调度器基础示例
+│   ├── 03_simple_task.py           # 简单任务执行示例
+│   └── 01_phase1_object_store.py   # 旧 Phase 1 示例
 │
-├── build/                          # 🔨 CMake 构建临时文件（.gitignore）
-│   └── temp.xxx/                   # 编译中间文件
-│
-└── venv/                           # 🐍 Python 虚拟环境（.gitignore）
-    └── ...
+├── .venv/                          # Python 虚拟环境（本地开发）
+└── build/                          # CMake 构建输出（自动生成）
 ```
 
-## 🎯 核心目录详解
+---
 
-### 1. **`cpp/` - C++ 核心实现**
+## 🏗️ 架构层次
 
-这是项目的核心，所有高性能组件都用 C++ 实现。
-
-#### 1.1 `cpp/include/miniray/` - 头文件
+Mini-Ray 采用**三层架构**：
 
 ```
-cpp/include/miniray/
-├── common/              # 通用组件
-│   ├── id.h            # ID 类型：ObjectID, TaskID, FunctionID
-│   └── object_ref.h    # ObjectRef（类似 Future）
-│
-├── object_store/        # 对象存储
-│   └── object_store.h  # 线程安全的对象存储
-│
-├── scheduler/           # 任务调度
-│   └── scheduler.h     # 调度器（Phase 2）
-│
-└── core_worker/         # Worker 核心
-    └── core_worker.h   # Worker 组件（Phase 2）
+┌─────────────────────────────────────────────────┐
+│          用户代码 (User Code)                    │
+│    import miniray as ray                        │
+│    @ray.remote                                  │
+│    def func():                                  │
+│        pass                                     │
+└─────────────────────────────────────────────────┘
+                     ↓
+┌─────────────────────────────────────────────────┐
+│       Python API 层 (python/miniray/)           │
+│  - api.py: @ray.remote, ray.get                │
+│  - core.py: 核心逻辑封装                        │
+│  - worker.py: Worker 进程管理                   │
+└─────────────────────────────────────────────────┘
+                     ↓
+┌─────────────────────────────────────────────────┐
+│    Python/C++ 绑定层 (python_bindings.cpp)      │
+│  - pybind11 自动生成 Python 绑定                │
+│  - 类型转换（Python ↔ C++）                    │
+└─────────────────────────────────────────────────┘
+                     ↓
+┌─────────────────────────────────────────────────┐
+│         C++ 核心层 (cpp/src/ & include/)        │
+│                                                 │
+│  ┌──────────────┐  ┌──────────────┐           │
+│  │ ObjectStore  │  │  Scheduler   │           │
+│  │ (对象存储)   │  │  (调度器)    │           │
+│  └──────────────┘  └──────────────┘           │
+│         ↓                  ↓                    │
+│  ┌──────────────────────────────────┐          │
+│  │   SharedMemory (共享内存基础)    │          │
+│  └──────────────────────────────────┘          │
+└─────────────────────────────────────────────────┘
 ```
 
-**关键类说明**：
+---
 
-- **ObjectID**: 128-bit UUID，唯一标识对象
-- **ObjectRef**: 对象引用，封装 ObjectID，实现 Future 模式
-- **ObjectStore**: 核心存储，使用 `std::unordered_map` + `std::mutex`
+## 📦 核心模块说明
 
-#### 1.2 `cpp/src/` - 实现文件
+### 1. Common 模块 (`cpp/include/miniray/common/`)
 
+提供基础数据结构和工具：
+
+| 文件 | 功能 | 说明 |
+|------|------|------|
+| `id.h` | ObjectID | 128 位唯一标识符 |
+| `object_ref.h` | ObjectRef | 对象引用（包装 ObjectID） |
+| `task.h` | Task | 任务数据结构 |
+| `buffer.h` | Buffer | 数据缓冲区 |
+| `memory.h` | SharedMemory | POSIX 共享内存封装（NEW） |
+
+**设计要点**:
+- 所有 ID 都基于随机生成，确保全局唯一
+- ObjectRef 是值类型，可以安全拷贝和传递
+- SharedMemory 使用 RAII 模式自动管理资源
+
+---
+
+### 2. ObjectStore 模块 (`cpp/include/miniray/object_store/`)
+
+**重构说明**: 原来的 `shared::SharedObjectStore` 重命名为 `object_store::ObjectStore`
+
+**核心功能**:
+```cpp
+namespace miniray {
+namespace object_store {
+
+class ObjectStore {
+public:
+    // 存储对象（自动生成 ID）
+    ObjectRef Put(const std::vector<uint8_t>& data);
+
+    // 存储对象（使用指定 ID）
+    ObjectRef Put(const ObjectRef& ref, const std::vector<uint8_t>& data);
+
+    // 获取对象
+    std::shared_ptr<Buffer> Get(const ObjectRef& ref);
+
+    // 删除对象
+    void Delete(const ObjectRef& ref);
+
+    // 检查对象是否存在
+    bool Contains(const ObjectRef& ref) const;
+};
+
+}  // namespace object_store
+}  // namespace miniray
 ```
-cpp/src/
-├── common/
-│   ├── id.cpp              # ID 生成和转换
-│   └── object_ref.cpp      # ObjectRef 实现
-│
-├── object_store/
-│   └── object_store.cpp    # ObjectStore 实现
-│
-└── python_bindings.cpp     # ⭐ pybind11 绑定（重要）
+
+**内存布局**:
+- 固定大小：1000 个槽位
+- 每个对象最大 64KB
+- 使用共享内存，进程间零拷贝
+
+---
+
+### 3. Raylet 模块 (`cpp/include/miniray/raylet/`)
+
+**重构说明**: 原来的 `shared::SharedScheduler` 重命名为 `raylet::Scheduler`
+
+**核心功能**:
+```cpp
+namespace miniray {
+namespace raylet {
+
+class Scheduler {
+public:
+    // 提交任务
+    void SubmitTask(const Task& task);
+
+    // 获取下一个任务
+    std::shared_ptr<Task> GetNextTask();
+
+    // Worker 管理
+    void RegisterWorker(int worker_id);
+    void UnregisterWorker(int worker_id);
+    void MarkWorkerBusy(int worker_id);
+    void MarkWorkerIdle(int worker_id);
+};
+
+}  // namespace raylet
+}  // namespace miniray
 ```
 
-**python_bindings.cpp** 是连接 C++ 和 Python 的桥梁：
+**调度策略**:
+- FIFO 队列（先进先出）
+- 循环队列实现（固定大小）
+- Worker 拉取模式（Pull-based）
+
+---
+
+### 4. CoreWorker 模块 (`cpp/include/miniray/core_worker/`)
+
+**Facade 模式**: 封装 Scheduler 和 ObjectStore 的复杂性
 
 ```cpp
-PYBIND11_MODULE(_miniray_core, m) {
-    py::class_<ObjectStore>(m, "ObjectStore")
-        .def(py::init<>())
-        .def("put", ...)
-        .def("get", ...)
-        .def("delete", ...)
-        .def("contains", ...)
-        .def("size", ...);
-}
+namespace miniray {
+namespace core_worker {
+
+class CoreWorker {
+public:
+    CoreWorker(
+        std::shared_ptr<raylet::Scheduler> scheduler,
+        std::shared_ptr<object_store::ObjectStore> object_store,
+        int worker_id
+    );
+
+    // 任务操作
+    ObjectRef SubmitTask(const Task& task);
+    std::shared_ptr<Task> GetNextTask();
+
+    // 对象操作
+    void PutObject(const ObjectRef& ref, const std::vector<uint8_t>& data);
+    std::shared_ptr<Buffer> GetObject(const ObjectRef& ref);
+
+    // Worker 状态
+    void MarkWorkerBusy();
+    void MarkWorkerIdle();
+};
+
+}  // namespace core_worker
+}  // namespace miniray
 ```
 
-### 2. **`python/miniray/` - Python 包**
+---
 
-这是用户直接使用的 Python API 层。
+## 🐍 Python API 层
 
-```
-python/miniray/
-├── __init__.py          # 包入口，导入并导出 API
-├── _miniray_core.so     # C++ 编译生成（不提交到 git）
-├── api.py               # 高层 API：init(), get(), remote()
-├── actor.py             # Actor 类和装饰器
-├── scheduler.py         # 调度器 Python 封装
-└── core.py              # 纯 Python 备用实现
-```
+### 主要文件
 
-#### 2.1 导入层次
-
+#### `api.py` - 用户接口
 ```python
-# 用户代码
-import miniray           # 导入包
+# 装饰器
+@ray.remote
+def my_function(x):
+    return x * 2
 
-# miniray/__init__.py
-from . import _miniray_core           # 导入 C++ 模块
-from .api import init, get, remote    # 导入 Python API
-
-# 用户可以这样使用
-miniray.init()
-ref = miniray.remote(func).remote(arg)
-result = miniray.get(ref)
+# 执行
+ref = my_function.remote(21)
+result = ray.get(ref)  # 42
 ```
 
-#### 2.2 文件职责
-
-| 文件 | 职责 | 依赖 |
-|------|------|------|
-| `__init__.py` | 包入口，统一导出接口 | `_miniray_core`, `api.py` |
-| `_miniray_core.so` | C++ 核心功能 | C++ 编译生成 |
-| `api.py` | 高层 API 封装 | `_miniray_core` |
-| `actor.py` | Actor 模式实现 | `_miniray_core`, `api.py` |
-| `scheduler.py` | 调度器 Python 接口 | `_miniray_core` |
-| `core.py` | 纯 Python 备用实现 | 无（独立） |
-
-### 3. **`examples/` - 示例代码**
-
-**目的**：展示如何使用 mini-ray 的各种功能
-
-```
-examples/
-├── 01_phase1_object_store.py   # Phase 1 示例
-│   ├── 基础 put/get
-│   ├── Python 对象序列化
-│   ├── 批量操作
-│   ├── 生命周期管理
-│   └── 真实场景模拟
-│
-├── 02_actor.py                 # Phase 2: Actor 示例
-└── 03_mapreduce.py             # Phase 3: MapReduce 示例
+#### `core.py` - 核心逻辑
+```python
+class GlobalState:
+    """全局状态管理"""
+    scheduler: Scheduler
+    object_store: ObjectStore
+    worker: CoreWorker
 ```
 
-**运行方式**：
-```bash
-python3 examples/01_phase1_object_store.py
+#### `worker.py` - Worker 进程
+```python
+class Worker:
+    """Worker 进程主循环"""
+    def run(self):
+        while True:
+            task = get_next_task()
+            if task:
+                execute_task(task)
 ```
 
-**特点**：
-- ✅ 可直接运行（包含 sys.path 设置）
-- ✅ 包含详细注释
-- ✅ 演示真实使用场景
-- ✅ 按 Phase 组织
+---
 
-### 4. **`tests/` - 单元测试**
+## 🔄 Phase 2.5 重构变更
 
-**目的**：自动化测试，确保代码正确性
+### 命名空间变更
+
+| 旧命名空间 | 新命名空间 | 文件位置 |
+|-----------|-----------|---------|
+| `miniray::shared::SharedMemory` | `miniray::common::SharedMemory` | `common/memory.h` |
+| `miniray::shared::SharedObjectStore` | `miniray::object_store::ObjectStore` | `object_store/object_store.h` |
+| `miniray::shared::SharedScheduler` | `miniray::raylet::Scheduler` | `raylet/scheduler.h` |
+
+### 目录结构变更
+
+```
+旧结构:
+cpp/include/miniray/shared/
+  ├── shared_memory.h
+  ├── shared_object_store.h
+  └── shared_scheduler.h
+
+新结构:
+cpp/include/miniray/
+  ├── common/memory.h
+  ├── object_store/object_store.h
+  └── raylet/scheduler.h
+```
+
+### 代码分离
+
+所有模块现在都有独立的实现文件：
+- `cpp/src/common/memory.cpp`
+- `cpp/src/object_store/object_store.cpp`
+- `cpp/src/raylet/scheduler.cpp`
+
+---
+
+## 🧪 测试结构
+
+### 测试文件组织
 
 ```
 tests/
-├── README.md                # 测试文档（如何运行、编写测试）
-├── conftest.py              # pytest 配置和 fixtures
-├── test_object_store.py     # ObjectStore 测试（5 个测试类）
-├── test_bindings.py         # pybind11 绑定测试
-└── test_cpp_core.py         # 旧版测试（保留）
+├── conftest.py              # pytest 配置
+│   - cleanup_shared_memory fixture
+│   - temp_object_store fixture
+│   - temp_scheduler fixture
+│
+├── test_object_store.py     # ObjectStore 测试
+│   - 8 个测试用例
+│   - 覆盖 Put/Get/Delete/Contains
+│
+└── test_scheduler.py        # Scheduler 测试
+    - 6 个测试用例
+    - 覆盖任务提交、获取、Worker 管理
 ```
 
-**运行方式**：
+### 运行测试
+
 ```bash
-pytest tests/                 # 运行所有测试
-pytest tests/ -v              # 详细输出
-pytest tests/ -k "put"        # 只运行包含 "put" 的测试
+# 运行所有测试
+pytest tests/ -v
+
+# 运行特定测试
+pytest tests/test_object_store.py -v
+
+# 查看覆盖率
+pytest tests/ --cov=miniray
 ```
 
-**测试组织**（以 `test_object_store.py` 为例）：
-```python
-class TestObjectStoreBasic:           # 基础功能
-class TestObjectStorePythonObjects:   # Python 对象
-class TestObjectStoreBatch:           # 批量操作
-class TestObjectStoreEdgeCases:       # 边界情况
-class TestObjectStoreIntegration:     # 集成测试
-```
+---
 
-### 5. **`doc/` - 文档目录**
+## 📝 示例结构
+
+### 示例文件
 
 ```
-doc/
-├── DESIGN.md              # 系统架构设计（最重要）
-├── IMPORT_GUIDE.md        # 模块导入机制说明
-├── TROUBLESHOOTING.md     # 常见问题
-└── GIT_GUIDE.md           # Git 使用指南
+examples/
+├── README.md                # 示例说明
+├── 01_object_store.py       # 对象存储基础
+├── 02_scheduler.py          # 调度器基础
+└── 03_simple_task.py        # 完整任务流程
 ```
 
-**必读文档**：
-1. **DESIGN.md** - 理解整体架构和分层设计
-2. **IMPORT_GUIDE.md** - 理解为什么 import 要这样写
+### 运行示例
 
-## 🔄 构建流程
+```bash
+# 对象存储示例
+python examples/01_object_store.py
 
-### 完整构建流程图
+# 调度器示例
+python examples/02_scheduler.py
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ 1. 用户执行：python3 setup.py build_ext --inplace          │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 2. setuptools 加载 setup.py                                 │
-│    - 读取配置                                                │
-│    - 发现 ext_modules=[CMakeExtension('_miniray_core')]    │
-│    - 使用 cmdclass={'build_ext': CMakeBuild}               │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 3. CMakeBuild.run() 开始执行                                │
-│    - 检查 CMake 是否安装                                     │
-│    - 调用 build_extension(ext) 对每个扩展                   │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 4. CMakeBuild.build_extension()                             │
-│    - 准备 CMake 参数                                         │
-│    - 创建 build/ 临时目录                                    │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 5. 运行 CMake 配置                                           │
-│    cmake <source_dir> \                                     │
-│      -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=python/miniray/ \     │
-│      -DPYTHON_EXECUTABLE=/usr/bin/python3 \                 │
-│      -DCMAKE_BUILD_TYPE=Release                             │
-│                                                              │
-│    - 读取 CMakeLists.txt                                    │
-│    - 查找 pybind11                                          │
-│    - 生成 Makefile 或 Ninja 文件                            │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 6. 运行 CMake 构建                                           │
-│    cmake --build . --config Release -j4                     │
-│                                                              │
-│    - 调用底层编译器（g++/clang++）                          │
-│    - 编译所有 .cpp 文件                                      │
-│    - 链接生成 _miniray_core.so                              │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 7. 输出文件生成                                              │
-│    python/miniray/_miniray_core.so（macOS/Linux）           │
-│    python/miniray/_miniray_core.pyd（Windows）              │
-└─────────────────────────────────────────────────────────────┘
+# 任务执行示例
+python examples/03_simple_task.py
 ```
 
-### CMake 文件层次
+---
 
-```
-CMakeLists.txt（根目录）
-    ├── project(miniray)
-    ├── find_package(pybind11)
-    └── add_subdirectory(cpp)
-            │
-            ▼
-        cpp/CMakeLists.txt
-            ├── file(GLOB_RECURSE MINIRAY_SOURCES ...)
-            ├── pybind11_add_module(_miniray_core ...)
-            └── set_target_properties(OUTPUT_NAME "_miniray_core")
+## 🔧 构建流程
+
+### 1. CMake 配置
+```bash
+cmake -B build -S .
 ```
 
-## 📝 文件命名约定
+### 2. 编译 C++ 代码
+```bash
+cmake --build build
+```
 
-### C++ 文件
-- **头文件**：`*.h`（全部小写，下划线分隔）
-  - `object_store.h`
-  - `object_ref.h`
-  - `id.h`
+### 3. 安装 Python 包
+```bash
+pip install -e .
+```
 
-- **实现文件**：`*.cpp`
-  - `object_store.cpp`
-  - `python_bindings.cpp`
+**自动化**: `pip install -e .` 会自动执行上述步骤
 
-- **命名空间**：`miniray::xxx`
-  ```cpp
-  namespace miniray {
-  namespace object_store {
-      class ObjectStore { ... };
-  }
-  }
-  ```
+---
 
-### Python 文件
-- **包/模块**：全部小写，下划线分隔
-  - `miniray/`
-  - `api.py`
-  - `actor.py`
+## 📚 代码注释风格
 
-- **测试文件**：`test_*.py`
-  - `test_object_store.py`
-  - `test_bindings.py`
+所有 C++ 代码都遵循详细的注释规范：
 
-- **示例文件**：`数字_phase_功能.py`
-  - `01_phase1_object_store.py`
-  - `02_actor.py`
+### 文件级注释
+```cpp
+/**
+ * file_name.h - 简短描述
+ *
+ * ============================================================
+ * 设计思想和架构
+ * ============================================================
+ * [详细的设计说明]
+ *
+ * ============================================================
+ * C++ 特性运用
+ * ============================================================
+ * [使用的 C++ 技术和最佳实践]
+ */
+```
 
-### 验收测试
-- **位置**：项目根目录
-- **命名**：`test_phaseN.py`
-  - `test_phase1.py`
-  - `test_phase2.py`（未来）
+### 类级注释
+```cpp
+/**
+ * @brief 类的简短描述
+ *
+ * 详细说明：
+ * - 功能
+ * - 使用场景
+ * - 注意事项
+ */
+class MyClass {
+    // ...
+};
+```
 
-## 🔍 查找代码的技巧
+### 方法级注释
+```cpp
+/**
+ * @brief 方法简短描述
+ *
+ * @param param1 参数说明
+ * @return 返回值说明
+ *
+ * 实现细节：
+ * 1. 步骤一
+ * 2. 步骤二
+ */
+void MyMethod(int param1);
+```
+
+---
+
+## 🔍 查找代码
 
 ### 按功能查找
 
 | 功能 | 位置 |
 |------|------|
-| ObjectStore 实现 | `cpp/src/object_store/object_store.cpp` |
-| ObjectStore 头文件 | `cpp/include/miniray/object_store/object_store.h` |
-| Python 绑定 | `cpp/src/python_bindings.cpp` |
+| 对象存储 | `cpp/include/miniray/object_store/` |
+| 任务调度 | `cpp/include/miniray/raylet/` |
+| 共享内存 | `cpp/include/miniray/common/memory.h` |
 | Python API | `python/miniray/api.py` |
-| 测试 ObjectStore | `tests/test_object_store.py` |
-| ObjectStore 示例 | `examples/01_phase1_object_store.py` |
+| Worker 逻辑 | `python/miniray/worker.py` |
 
-### 按问题查找
+### 按文件类型查找
 
-| 问题 | 查找位置 |
-|------|----------|
-| 编译错误 | `cpp/CMakeLists.txt`, `setup.py` |
-| 导入错误 | `python/miniray/__init__.py`, `doc/IMPORT_GUIDE.md` |
-| 运行时错误 | `cpp/src/python_bindings.cpp` |
-| 测试失败 | `tests/` |
-| IDE 配置问题 | `doc/TROUBLESHOOTING.md` |
-
-## 🚀 常用操作速查
-
-### 构建和测试
 ```bash
-# 构建 C++ 扩展
-python3 setup.py build_ext --inplace
+# 查找所有头文件
+find cpp/include -name "*.h"
 
-# 运行验收测试
-python3 test_phase1.py
+# 查找所有实现文件
+find cpp/src -name "*.cpp"
 
-# 运行单元测试
-pytest tests/ -v
+# 查找所有 Python 文件
+find python/miniray -name "*.py"
 
-# 运行示例
-python3 examples/01_phase1_object_store.py
+# 查找所有测试文件
+find tests -name "test_*.py"
 ```
-
-### 清理
-```bash
-# 清理构建文件
-rm -rf build/
-
-# 清理编译生成的扩展
-rm -f python/miniray/_miniray_core*.so
-rm -f python/miniray/_miniray_core*.dylib
-
-# 清理 Python 缓存
-find . -type d -name "__pycache__" -exec rm -rf {} +
-find . -type f -name "*.pyc" -delete
-```
-
-### 开发流程
-```bash
-# 1. 修改 C++ 代码
-vim cpp/src/object_store/object_store.cpp
-
-# 2. 重新编译
-python3 setup.py build_ext --inplace
-
-# 3. 运行测试验证
-pytest tests/test_object_store.py -v
-
-# 4. 运行示例验证
-python3 examples/01_phase1_object_store.py
-```
-
-## 📊 文件依赖关系
-
-### C++ 层依赖
-```
-python_bindings.cpp
-    ├── #include "miniray/object_store/object_store.h"
-    ├── #include "miniray/common/object_ref.h"
-    └── #include "miniray/common/id.h"
-
-object_store.cpp
-    ├── #include "miniray/object_store/object_store.h"
-    └── #include "miniray/common/object_ref.h"
-
-object_ref.cpp
-    └── #include "miniray/common/object_ref.h"
-```
-
-### Python 层依赖
-```
-用户代码
-    └── import miniray
-
-miniray/__init__.py
-    ├── from . import _miniray_core
-    └── from .api import init, get, remote
-
-miniray/api.py
-    └── from . import _miniray_core
-
-tests/test_object_store.py
-    └── import _miniray_core (通过 conftest.py)
-
-examples/01_phase1_object_store.py
-    └── import _miniray_core (直接导入)
-```
-
-## 🎓 学习路径建议
-
-### 1. 理解架构（1-2 小时）
-1. 阅读 `doc/DESIGN.md` - 理解整体设计
-2. 阅读本文档 - 理解文件组织
-3. 查看 `cpp/include/miniray/` - 理解 C++ 接口
-
-### 2. 运行示例（30 分钟）
-1. 构建项目：`python3 setup.py build_ext --inplace`
-2. 运行示例：`python3 examples/01_phase1_object_store.py`
-3. 运行测试：`pytest tests/ -v`
-
-### 3. 阅读代码（2-3 小时）
-1. `cpp/include/miniray/common/id.h` - 理解 ID 设计
-2. `cpp/src/object_store/object_store.cpp` - 理解存储实现
-3. `cpp/src/python_bindings.cpp` - 理解 Python 绑定
-4. `python/miniray/__init__.py` - 理解 Python 层组织
-
-### 4. 修改代码（1-2 小时）
-1. 在 `ObjectStore` 添加一个新方法（如 `list_all_refs()`）
-2. 在 `python_bindings.cpp` 暴露这个方法
-3. 重新编译并测试
-4. 在 `tests/test_object_store.py` 添加测试
-
-### 5. 实现新功能（Phase 2）
-1. 阅读 `doc/DESIGN.md` 的 Phase 2 部分
-2. 实现 `Scheduler` 类
-3. 实现 `CoreWorker` 类
-4. 添加测试和示例
-
-## 📚 相关文档
-
-- [README.md](../README.md) - 项目介绍和快速开始
-- [doc/DESIGN.md](DESIGN.md) - 系统架构设计
-- [doc/IMPORT_GUIDE.md](doc/IMPORT_GUIDE.md) - 模块导入说明
-- [tests/README.md](../tests/README.md) - 测试说明
-- [doc/TROUBLESHOOTING.md](doc/TROUBLESHOOTING.md) - 问题排查
-
-## ❓ 常见问题
-
-### Q1: 为什么 Python 代码在 `python/miniray/` 而不是 `miniray/`？
-**A**: 这是为了避免导入混淆：
-- `python/` 目录表明这是 Python 相关代码
-- `miniray/` 是实际的包名
-- 编译生成的 `.so` 文件也在 `python/miniray/` 下
-
-### Q2: 为什么测试文件要 `import _miniray_core` 而不是 `from miniray import ...`？
-**A**: 为了避免循环导入问题，详见 [doc/IMPORT_GUIDE.md](doc/IMPORT_GUIDE.md)
-
-### Q3: `test_phase1.py` 和 `tests/` 有什么区别？
-**A**:
-- `test_phase1.py` 是**验收测试**，验证整个 Phase 的功能
-- `tests/` 是**单元测试**，验证每个组件的具体功能
-
-### Q4: `examples/` 和 `tests/` 的代码能合并吗？
-**A**: 不建议：
-- `examples/` 是教学代码，注重可读性和完整性
-- `tests/` 是测试代码，注重覆盖率和自动化
-- 两者目的不同，应该分开
-
-### Q5: 修改 C++ 代码后需要重启 Python 吗？
-**A**: 需要：
-1. 重新编译：`python3 setup.py build_ext --inplace`
-2. 重启 Python 解释器（或重新导入模块）
-3. `.so` 文件加载后会被缓存，必须重启
 
 ---
 
-**维护者**：Mini-Ray Contributors
-**最后更新**：2025-12-05
+## 📖 相关文档
 
-如有问题，请查阅 [doc/TROUBLESHOOTING.md](doc/TROUBLESHOOTING.md) 或提交 Issue。
+- **[DESIGN.md](DESIGN.md)** - 系统架构设计
+- **[PHASE1_SUMMARY.md](PHASE1_SUMMARY.md)** - Phase 1 总结
+- **[PHASE2_GUIDE.md](PHASE2_GUIDE.md)** - Phase 2 指南
+- **[PHASE3_DESIGN.md](PHASE3_DESIGN.md)** - Phase 3 设计
+- **[../REFACTORING_SUMMARY.md](../REFACTORING_SUMMARY.md)** - 重构总结
+
+---
+
+**最后更新**: 2024-12-06
+**维护者**: Mini-Ray Team
