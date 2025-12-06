@@ -61,7 +61,7 @@ pip3 install pybind11 setuptools
 # 或使用虚拟环境（推荐）
 python3 -m venv venv
 source venv/bin/activate
-pip install pybind11 setuptools pytest
+pip install pybind11 setuptools pytest pickle
 ```
 
 ### 构建项目
@@ -76,17 +76,24 @@ python3 setup.py build_ext --inplace
 ### 验证安装
 
 ```bash
-# 运行 Phase 1 验收测试（推荐）⭐
+# 运行 Phase 1 验收测试
 python3 test_phase1.py
+
+# 运行 Phase 2 验收测试
+python3 test_phase2.py
 ```
 
 **期望输出**：
 ```
-============================================================
-Mini-Ray Phase 1 验收示例
-============================================================
+======================================================================
+                        Phase 2 验收测试
+======================================================================
 ...
-✓ Phase 1 验收标准全部通过！
+总计: 7 个测试
+通过: 7 个
+失败: 0 个
+
+🎉 所有测试通过！
 ```
 
 ---
@@ -97,16 +104,20 @@ Mini-Ray Phase 1 验收示例
 
 | 文件 | 说明 | 用途 |
 |------|------|------|
-| **test_phase1.py** ⭐ | Phase 1 验收测试 | 快速验证 C++ 模块 |
+| **test_phase1.py** | Phase 1 验收测试 | 验证 C++ 核心模块 |
+| **test_phase2.py** ⭐ | Phase 2 验收测试 | 验证任务调度和执行 |
 | **tests/test_cpp_core.py** | 详细单元测试 | 完整测试所有组件 |
 
 ### 运行测试
 
 ```bash
-# 快速验收（推荐）
+# Phase 1 验收
 python3 test_phase1.py
 
-# 详细测试（查看所有用例）
+# Phase 2 验收（推荐）⭐
+python3 test_phase2.py
+
+# 详细测试
 python3 tests/test_cpp_core.py
 ```
 
@@ -142,22 +153,26 @@ retrieved = pickle.loads(store.get(ref2))
 print(f"对象: {retrieved}")
 ```
 
-### Phase 2+：高层 API（即将实现）
+### Phase 2：高层 API（已完成 ✅）
 
 ```python
-import miniray
+import miniray as ray
 
-miniray.init(num_workers=4)
+# 初始化系统
+ray.init(num_workers=4)
 
-
-@miniray.remote
+# 定义远程函数
+@ray.remote
 def add(a, b):
    return a + b
 
-
+# 调用远程函数
 ref = add.remote(1, 2)
-result = miniray.get(ref)
+result = ray.get(ref)
 print(result)  # 3
+
+# 关闭系统
+ray.shutdown()
 ```
 
 ---
@@ -169,16 +184,17 @@ mini-ray/                         # 项目根目录
 ├── README.md                     # 本文件
 ├── setup.py                      # 构建配置
 ├── CMakeLists.txt                # CMake 根配置
-├── test_phase1.py                # Phase 1 验收测试 ⭐
+├── test_phase1.py                # Phase 1 验收测试
+├── test_phase2.py                # Phase 2 验收测试 ⭐
 │
 ├── python/                       # Python 代码目录
-│   └── mini_ray/                 # Python 包（import mini_ray）
+│   └── miniray/                  # Python 包（import miniray）
 │       ├── __init__.py           # 包入口
 │       ├── _miniray_core.so      # C++ 扩展模块 ⚙️
-│       ├── api.py                # Python API
-│       ├── actor.py              # Actor 实现
-│       ├── core.py               # 核心数据结构
-│       └── scheduler.py          # 调度器（Python 版）
+│       ├── api.py                # Python API (Phase 2) ✅
+│       ├── worker.py             # Worker 进程 (Phase 2) ✅
+│       ├── actor.py              # Actor 实现 (Phase 3)
+│       └── core.py               # 核心数据结构
 │
 ├── cpp/                          # C++ 代码目录
 │   ├── CMakeLists.txt            # C++ 构建配置
@@ -189,22 +205,29 @@ mini-ray/                         # 项目根目录
 │   │   │   └── task.h           # Task 数据结构
 │   │   ├── object_store/
 │   │   │   └── object_store.h   # 对象存储（线程安全）
-│   │   ├── scheduler/           # (Phase 2)
-│   │   └── core_worker/         # (Phase 2)
+│   │   ├── scheduler/           # (Phase 2) ✅
+│   │   │   └── scheduler.h      # Scheduler 任务调度器
+│   │   └── core_worker/         # (Phase 2) ✅
+│   │       └── core_worker.h    # CoreWorker 核心工作器
 │   └── src/
-│       └── python_bindings.cpp  # pybind11 绑定
+│       ├── python_bindings.cpp  # pybind11 绑定
+│       ├── scheduler/
+│       │   └── scheduler.cpp    # (Phase 2) ✅
+│       └── core_worker/
+│           └── core_worker.cpp  # (Phase 2) ✅
 │
 ├── tests/
 │   └── test_cpp_core.py         # 详细单元测试
 │
 ├── examples/                     # 示例代码
-│   ├── 01_basic_task.py
-│   ├── 02_actor.py
-│   └── 03_mapreduce.py
+│   ├── phase2_01_basic_tasks.py           # 基础任务示例 ✅
+│   ├── phase2_02_parallel_computation.py  # 并行计算示例 ✅
+│   └── phase2_03_performance_comparison.py # 性能对比示例 ✅
 │
 └── doc/                          # 文档
     ├── DESIGN.md                # 设计文档（详细架构）
-    └── PHASE1_SUMMARY.md        # Phase 1 总结
+    ├── PHASE1_SUMMARY.md        # Phase 1 总结
+    └── PHASE2_GUIDE.md          # Phase 2 使用指南 ✅
 ```
 
 ---
@@ -264,27 +287,43 @@ gdb --args python3 ../test_phase1.py
 
 **验收标准**：能够存储和获取 Python 对象 ✅
 
-### 🚧 Phase 2：任务调度和执行（规划中）
+### ✅ Phase 2：任务调度和执行（已完成）
 
-- [ ] Scheduler（C++ 任务调度器）
-- [ ] CoreWorker（C++ 核心工作组件）
-- [ ] Worker 进程管理
-- [ ] 端到端任务执行
+- [x] Scheduler（C++ 任务调度器）
+- [x] CoreWorker（C++ 核心工作组件）
+- [x] Worker 进程管理
+- [x] Python API 层（`@ray.remote`、`ray.get()`）
+- [x] 端到端任务执行
+- [x] 验收测试
+- [x] 示例代码
 
-**验收标准**：
+**验收标准**：✅ 通过
 ```python
-@mini_ray.remote
+@ray.remote
 def add(a, b):
     return a + b
 
-result = mini_ray.get(add.remote(1, 2))  # 返回 3
+result = ray.get(add.remote(1, 2))  # 返回 3
 ```
+
+**测试命令**：
+```bash
+# 运行 Phase 2 验收测试
+python3 test_phase2.py
+
+# 运行示例代码
+python3 examples/phase2_01_basic_tasks.py
+python3 examples/phase2_02_parallel_computation.py
+python3 examples/phase2_03_performance_comparison.py
+```
+
+**详细文档**：[doc/PHASE2_GUIDE.md](doc/PHASE2_GUIDE.md)
 
 ### 📅 Phase 3-5（规划中）
 
-- Phase 3: Python API 层完善
-- Phase 4: Actor 支持
-- Phase 5: 高级特性
+- Phase 3: Actor 模型和自动依赖追踪
+- Phase 4: 高级调度策略
+- Phase 5: 容错和监控
 
 详见 [doc/DESIGN.md](doc/DESIGN.md)
 
@@ -296,6 +335,7 @@ result = mini_ray.get(add.remote(1, 2))  # 返回 3
 
 - [doc/DESIGN.md](doc/DESIGN.md) - 详细架构设计
 - [doc/PHASE1_SUMMARY.md](doc/PHASE1_SUMMARY.md) - Phase 1 总结
+- [doc/PHASE2_GUIDE.md](doc/PHASE2_GUIDE.md) - Phase 2 使用指南 ⭐
 
 ### Ray 相关
 

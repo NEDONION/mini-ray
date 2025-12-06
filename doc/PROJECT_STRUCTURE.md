@@ -498,10 +498,10 @@ examples/01_phase1_object_store.py
 
 ## 📚 相关文档
 
-- [README.md](README.md) - 项目介绍和快速开始
-- [doc/DESIGN.md](doc/DESIGN.md) - 系统架构设计
+- [README.md](../README.md) - 项目介绍和快速开始
+- [doc/DESIGN.md](DESIGN.md) - 系统架构设计
 - [doc/IMPORT_GUIDE.md](doc/IMPORT_GUIDE.md) - 模块导入说明
-- [tests/README.md](tests/README.md) - 测试说明
+- [tests/README.md](../tests/README.md) - 测试说明
 - [doc/TROUBLESHOOTING.md](doc/TROUBLESHOOTING.md) - 问题排查
 
 ## ❓ 常见问题

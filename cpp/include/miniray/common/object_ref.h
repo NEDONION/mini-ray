@@ -30,6 +30,20 @@ public:
     }
 
     /**
+     * @brief 获取 ObjectID
+     */
+    const ObjectID& ID() const {
+        return object_id_;
+    }
+
+    /**
+     * @brief 获取 ObjectID 的十六进制表示
+     */
+    std::string ToHex() const {
+        return object_id_.ToHex();
+    }
+
+    /**
      * @brief 转换为字符串（用于调试和 Python 绑定）
      */
     std::string ToString() const {

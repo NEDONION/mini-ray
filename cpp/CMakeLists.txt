@@ -4,6 +4,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 # 收集源文件
 set(MINIRAY_SOURCES
     src/python_bindings.cpp
+    src/core_worker/core_worker.cpp   # Phase 2: CoreWorker 实现
 )
 
 # 创建 Python 扩展模块
@@ -13,7 +14,7 @@ pybind11_add_module(_miniray_core ${MINIRAY_SOURCES})
 set_target_properties(_miniray_core PROPERTIES
     PREFIX ""
     OUTPUT_NAME "_miniray_core"
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/python/mini_ray
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/python/miniray
 )
 
 # 如果是 macOS，设置 rpath
