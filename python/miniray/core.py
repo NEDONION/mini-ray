@@ -5,7 +5,6 @@ Mini-Ray 核心组件
 
 import uuid
 import time
-import pickle
 from dataclasses import dataclass
 from typing import Any, Callable
 from multiprocessing import Queue

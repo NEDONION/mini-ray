@@ -61,7 +61,7 @@ std::shared_ptr<Task> CoreWorker::GetNextTask() {
 
 void CoreWorker::PutObject(const ObjectRef& object_ref,
                            const std::vector<uint8_t>& data) {
-    object_store_->Put(data);
+    object_store_->Put(object_ref, data);
 }
 
 std::shared_ptr<Buffer> CoreWorker::GetObject(const ObjectRef& object_ref) {

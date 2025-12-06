@@ -6,6 +6,8 @@
 #include <memory>
 #include <iostream>
 #include <cstdio>
+#include <cstring>
+#include <stdexcept>
 
 namespace miniray {
 namespace shared {
@@ -32,7 +34,6 @@ struct SharedSchedulerLayout {
         FunctionID function_id;
         ObjectRef return_ref;
 
-        // 使用固定大小数组而不是 vector（适合共享内存）
         size_t serialized_function_size;
         uint8_t serialized_function[MAX_SERIALIZED_SIZE];
 
@@ -41,7 +42,7 @@ struct SharedSchedulerLayout {
 
         SharedTask() : serialized_function_size(0), serialized_args_size(0) {}
 
-        // 从 Task 转换
+        // 从 Task 转换（写入共享内存槽位）
         void FromTask(const Task& task) {
             task_id = task.task_id;
             function_id = task.function_id;
@@ -51,28 +52,35 @@ struct SharedSchedulerLayout {
             if (serialized_function_size > MAX_SERIALIZED_SIZE) {
                 throw std::runtime_error("Serialized function too large");
             }
-            std::memcpy(serialized_function, task.serialized_function.data(),
-                       serialized_function_size);
+            std::memcpy(
+                serialized_function,
+                task.serialized_function.data(),
+                serialized_function_size
+            );
 
             serialized_args_size = task.serialized_args.size();
             if (serialized_args_size > MAX_SERIALIZED_SIZE) {
                 throw std::runtime_error("Serialized args too large");
             }
-            std::memcpy(serialized_args, task.serialized_args.data(),
-                       serialized_args_size);
+            std::memcpy(
+                serialized_args,
+                task.serialized_args.data(),
+                serialized_args_size
+            );
 
-            fprintf(stderr, "[C++ FromTask] 复制数据: func_size=%zu, args_size=%zu\n",
-                    serialized_function_size, serialized_args_size);
-            fflush(stderr);
+            std::fprintf(stderr,
+                "[C++ FromTask] 复制数据: func_size=%zu, args_size=%zu\n",
+                serialized_function_size, serialized_args_size);
+            std::fflush(stderr);
         }
 
-        // 转换为 Task
-        Task ToTask() const {
-            fprintf(stderr, "[C++ ToTask] 读取数据: func_size=%zu, args_size=%zu\n",
-                    serialized_function_size, serialized_args_size);
-            fflush(stderr);
+        // 从共享内存槽位读回到 Task（深拷贝到 vector）
+        void ToTask(Task& task) const {
+            std::fprintf(stderr,
+                "[C++ ToTask] 读取数据: func_size=%zu, args_size=%zu\n",
+                serialized_function_size, serialized_args_size);
+            std::fflush(stderr);
 
-            Task task;
             task.task_id = task_id;
             task.function_id = function_id;
             task.return_ref = return_ref;
@@ -86,8 +94,6 @@ struct SharedSchedulerLayout {
                 serialized_args,
                 serialized_args + serialized_args_size
             );
-
-            return task;
         }
     };
 
@@ -138,9 +144,10 @@ public:
      * @brief 提交任务
      */
     void SubmitTask(const Task& task) {
-        fprintf(stderr, "[C++ SubmitTask] 输入任务: func_size=%zu, args_size=%zu\n",
-                task.serialized_function.size(), task.serialized_args.size());
-        fflush(stderr);
+        std::fprintf(stderr,
+            "[C++ SubmitTask] 输入任务: func_size=%zu, args_size=%zu\n",
+            task.serialized_function.size(), task.serialized_args.size());
+        std::fflush(stderr);
 
         LockGuard lock(layout_->header.mutex);
 
@@ -152,17 +159,18 @@ public:
         int tail = layout_->header.tail.load();
         layout_->tasks[tail].FromTask(task);
 
-        fprintf(stderr, "[C++ SubmitTask] 写入共享内存后: func_size=%zu, args_size=%zu\n",
-                layout_->tasks[tail].serialized_function_size, layout_->tasks[tail].serialized_args_size);
-        fflush(stderr);
+        std::fprintf(stderr,
+            "[C++ SubmitTask] 写入共享内存后: func_size=%zu, args_size=%zu\n",
+            layout_->tasks[tail].serialized_function_size,
+            layout_->tasks[tail].serialized_args_size);
+        std::fflush(stderr);
 
-        // 循环队列
         layout_->header.tail.store((tail + 1) % SharedSchedulerLayout::MAX_TASKS);
         layout_->header.task_count.fetch_add(1);
     }
 
     /**
-     * @brief 获取下一个任务
+     * @brief 获取下一个任务（堆上构造 Task，再用 shared_ptr 返回）
      */
     std::shared_ptr<Task> GetNextTask() {
         LockGuard lock(layout_->header.mutex);
@@ -173,22 +181,23 @@ public:
         }
 
         int head = layout_->header.head.load();
-        fprintf(stderr, "[C++ GetNextTask] 从共享内存读取: func_size=%zu, args_size=%zu\n",
-                layout_->tasks[head].serialized_function_size, layout_->tasks[head].serialized_args_size);
-        fflush(stderr);
+        auto& slot = layout_->tasks[head];
 
-        Task task = layout_->tasks[head].ToTask();
+        std::fprintf(stderr,
+            "[C++ GetNextTask] 从共享内存读取: func_size=%zu, args_size=%zu\n",
+            slot.serialized_function_size, slot.serialized_args_size);
+        std::fflush(stderr);
 
-        // 循环队列
+        auto task = std::make_shared<Task>();  // ✅ 在堆上分配
+        slot.ToTask(*task);                    // ✅ 深拷贝到 Task 的 vector 里
+
         layout_->header.head.store((head + 1) % SharedSchedulerLayout::MAX_TASKS);
         layout_->header.task_count.fetch_sub(1);
 
-        return std::make_shared<Task>(task);
+        return task;
     }
 
-    /**
-     * @brief 注册 Worker
-     */
+    // 下面 worker 相关逻辑保持原样
     void RegisterWorker(int worker_id) {
         LockGuard lock(layout_->header.mutex);
 
@@ -199,13 +208,9 @@ public:
                 return;
             }
         }
-
         throw std::runtime_error("Too many workers");
     }
 
-    /**
-     * @brief 注销 Worker
-     */
     void UnregisterWorker(int worker_id) {
         LockGuard lock(layout_->header.mutex);
 
@@ -218,9 +223,6 @@ public:
         }
     }
 
-    /**
-     * @brief 标记 Worker 为忙碌
-     */
     void MarkWorkerBusy(int worker_id) {
         for (int i = 0; i < SharedSchedulerLayout::MAX_WORKERS; i++) {
             if (layout_->workers[i].worker_id == worker_id) {
@@ -230,9 +232,6 @@ public:
         }
     }
 
-    /**
-     * @brief 标记 Worker 为空闲
-     */
     void MarkWorkerIdle(int worker_id) {
         for (int i = 0; i < SharedSchedulerLayout::MAX_WORKERS; i++) {
             if (layout_->workers[i].worker_id == worker_id) {
@@ -242,16 +241,10 @@ public:
         }
     }
 
-    /**
-     * @brief 获取待处理任务数
-     */
     size_t GetPendingTaskCount() const {
         return layout_->header.task_count.load();
     }
 
-    /**
-     * @brief 获取空闲 Worker 数量
-     */
     size_t GetIdleWorkerCount() const {
         int count = 0;
         for (int i = 0; i < SharedSchedulerLayout::MAX_WORKERS; i++) {
@@ -263,16 +256,10 @@ public:
         return count;
     }
 
-    /**
-     * @brief 是否有空闲 Worker
-     */
     bool HasIdleWorker() const {
         return GetIdleWorkerCount() > 0;
     }
 
-    /**
-     * @brief 清理共享内存
-     */
     static void Cleanup() {
         SharedMemory::Unlink("/miniray_scheduler");
     }

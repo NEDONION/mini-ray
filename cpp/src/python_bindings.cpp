@@ -57,11 +57,6 @@ PYBIND11_MODULE(_miniray_core, m) {
 
     /**
      * 绑定 ObjectID
-     *
-     * .def_static: 绑定静态方法
-     * __eq__, __ne__: 支持 Python 的 == 和 != 运算符
-     * __repr__: 支持 repr() 和交互式环境的显示
-     * __hash__: 支持作为字典键和放入集合
      */
     py::class_<ObjectID>(m, "ObjectID")
         .def(py::init<>())
@@ -77,6 +72,9 @@ PYBIND11_MODULE(_miniray_core, m) {
             return std::hash<ObjectID>()(id);
         });
 
+    /**
+     * 绑定 ObjectRef
+     */
     py::class_<ObjectRef>(m, "ObjectRef")
         .def(py::init<>())
         .def(py::init<const ObjectID&>(), py::arg("object_id"))
@@ -93,13 +91,11 @@ PYBIND11_MODULE(_miniray_core, m) {
 
     /**
      * 绑定 Buffer
-     *
-     * std::shared_ptr<Buffer> 作为持有者类型
-     * pybind11 会自动管理对象生命周期
      */
     py::class_<Buffer, std::shared_ptr<Buffer>>(m, "Buffer")
         .def("data", [](const Buffer& buffer) {
-            return py::bytes(reinterpret_cast<const char*>(buffer.Data()), buffer.Size());
+            return py::bytes(reinterpret_cast<const char*>(buffer.Data()),
+                             buffer.Size());
         })
         .def("size", &Buffer::Size)
         .def("__len__", &Buffer::Size)
@@ -109,9 +105,6 @@ PYBIND11_MODULE(_miniray_core, m) {
 
     /**
      * 绑定 Task
-     *
-     * .def_readwrite: 绑定可读写的成员变量
-     * Python 可以直接访问和修改
      */
     py::class_<Task>(m, "Task")
         .def(py::init<>())
@@ -123,13 +116,8 @@ PYBIND11_MODULE(_miniray_core, m) {
         });
 
     /**
-     * 绑定 ObjectStore
-     *
-     * lambda 用于类型转换：
-     * - Python bytes → C++ std::vector<uint8_t>
-     * - C++ Buffer → Python bytes
+     * 绑定 ObjectStore（共享内存版本）
      */
-    // 使用共享内存版本的 ObjectStore
     py::class_<shared::SharedObjectStore, std::shared_ptr<shared::SharedObjectStore>>(m, "ObjectStore")
         .def(py::init<bool>(), py::arg("create") = true)
         .def("put", [](shared::SharedObjectStore& store, py::bytes data) {
@@ -139,7 +127,8 @@ PYBIND11_MODULE(_miniray_core, m) {
         }, py::arg("data"))
         .def("get", [](shared::SharedObjectStore& store, const ObjectRef& object_ref) {
             auto buffer = store.Get(object_ref);
-            return py::bytes(reinterpret_cast<const char*>(buffer->Data()), buffer->Size());
+            return py::bytes(reinterpret_cast<const char*>(buffer->Data()),
+                             buffer->Size());
         }, py::arg("object_ref"))
         .def("contains", &shared::SharedObjectStore::Contains, py::arg("object_ref"))
         .def("remove", &shared::SharedObjectStore::Delete, py::arg("object_ref"))
@@ -149,23 +138,43 @@ PYBIND11_MODULE(_miniray_core, m) {
             return "ObjectStore(size=" + std::to_string(store.Size()) + ")";
         });
 
-    // 使用共享内存版本的 Scheduler
+    /**
+     * 绑定 Scheduler（共享内存版本）
+     */
     py::class_<shared::SharedScheduler, std::shared_ptr<shared::SharedScheduler>>(m, "Scheduler")
         .def(py::init<bool>(), py::arg("create") = true)
         .def("submit_task", &shared::SharedScheduler::SubmitTask, py::arg("task"))
-        .def("get_next_task", &shared::SharedScheduler::GetNextTask)
-        .def("register_worker", &shared::SharedScheduler::RegisterWorker, py::arg("worker_id"))
-        .def("unregister_worker", &shared::SharedScheduler::UnregisterWorker, py::arg("worker_id"))
-        .def("mark_worker_busy", &shared::SharedScheduler::MarkWorkerBusy, py::arg("worker_id"))
-        .def("mark_worker_idle", &shared::SharedScheduler::MarkWorkerIdle, py::arg("worker_id"))
-        .def("get_pending_task_count", &shared::SharedScheduler::GetPendingTaskCount)
-        .def("get_idle_worker_count", &shared::SharedScheduler::GetIdleWorkerCount)
+        // ⚠️ 关键修改：按值返回 Task，或 None
+        .def("get_next_task", [](shared::SharedScheduler& sched) -> py::object {
+            auto task_ptr = sched.GetNextTask();
+            if (!task_ptr) {
+                return py::none();
+            }
+            return py::cast(*task_ptr);  // 拷贝一份 Task（包含 vector 字段）
+        })
+        .def("register_worker", &shared::SharedScheduler::RegisterWorker,
+             py::arg("worker_id"))
+        .def("unregister_worker", &shared::SharedScheduler::UnregisterWorker,
+             py::arg("worker_id"))
+        .def("mark_worker_busy", &shared::SharedScheduler::MarkWorkerBusy,
+             py::arg("worker_id"))
+        .def("mark_worker_idle", &shared::SharedScheduler::MarkWorkerIdle,
+             py::arg("worker_id"))
+        .def("get_pending_task_count",
+             &shared::SharedScheduler::GetPendingTaskCount)
+        .def("get_idle_worker_count",
+             &shared::SharedScheduler::GetIdleWorkerCount)
         .def("has_idle_worker", &shared::SharedScheduler::HasIdleWorker)
         .def("__repr__", [](const shared::SharedScheduler& sched) {
-            return "Scheduler(pending=" + std::to_string(sched.GetPendingTaskCount()) +
-                   ", idle_workers=" + std::to_string(sched.GetIdleWorkerCount()) + ")";
+            return "Scheduler(pending=" +
+                   std::to_string(sched.GetPendingTaskCount()) +
+                   ", idle_workers=" +
+                   std::to_string(sched.GetIdleWorkerCount()) + ")";
         });
 
+    /**
+     * 绑定 CoreWorker
+     */
     py::class_<core_worker::CoreWorker>(m, "CoreWorker")
         .def(py::init<std::shared_ptr<shared::SharedScheduler>,
                       std::shared_ptr<shared::SharedObjectStore>,
@@ -173,20 +182,31 @@ PYBIND11_MODULE(_miniray_core, m) {
              py::arg("scheduler"),
              py::arg("object_store"),
              py::arg("worker_id"))
-        .def("submit_task", &core_worker::CoreWorker::SubmitTask, py::arg("task"))
-        .def("get_next_task", &core_worker::CoreWorker::GetNextTask)
+        .def("submit_task", &core_worker::CoreWorker::SubmitTask,
+             py::arg("task"))
+        // ⚠️ 关键修改：按值返回 Task，或 None
+        .def("get_next_task", [](core_worker::CoreWorker& worker) -> py::object {
+            auto task_ptr = worker.GetNextTask();
+            if (!task_ptr) {
+                return py::none();
+            }
+            return py::cast(*task_ptr);
+        })
         .def("put_object", &core_worker::CoreWorker::PutObject,
              py::arg("object_ref"),
              py::arg("data"))
-        .def("get_object", [](core_worker::CoreWorker& worker, const ObjectRef& object_ref) {
+        .def("get_object", [](core_worker::CoreWorker& worker,
+                              const ObjectRef& object_ref) {
             auto buffer = worker.GetObject(object_ref);
-            return py::bytes(reinterpret_cast<const char*>(buffer->Data()), buffer->Size());
+            return py::bytes(reinterpret_cast<const char*>(buffer->Data()),
+                             buffer->Size());
         }, py::arg("object_ref"))
         .def("get_worker_id", &core_worker::CoreWorker::GetWorkerID)
         .def("mark_worker_busy", &core_worker::CoreWorker::MarkWorkerBusy)
         .def("mark_worker_idle", &core_worker::CoreWorker::MarkWorkerIdle)
         .def("__repr__", [](const core_worker::CoreWorker& worker) {
-            return "CoreWorker(id=" + std::to_string(worker.GetWorkerID()) + ")";
+            return "CoreWorker(id=" + std::to_string(worker.GetWorkerID()) +
+                   ")";
         });
 
     // 添加共享内存清理函数

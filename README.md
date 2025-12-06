@@ -58,10 +58,17 @@ pip3 install --break-system-packages pybind11 setuptools
 # Linux  
 pip3 install pybind11 setuptools
 
-# 或使用虚拟环境（推荐）
-python3 -m venv venv
-source venv/bin/activate
-pip install pybind11 setuptools pytest pickle
+# 使用虚拟环境（推荐）
+# 使用项目根目录，创建 .venv 虚拟环境（必须是 .venv）
+python3 -m venv .venv
+
+# 激活虚拟环境
+source .venv/bin/activate
+
+# 安装依赖
+pip install --upgrade pip
+pip install "pybind11[global]==2.13.6"
+pip install setuptools pytest cloudpickle
 ```
 
 ### 构建项目

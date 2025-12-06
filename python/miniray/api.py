@@ -43,8 +43,9 @@ Python 语法和最佳实践
 import sys
 import os
 import multiprocessing
+import time
 from typing import Any, Callable, List, Union, Optional
-import pickle
+import cloudpickle as pickle
 
 # Set multiprocessing start method to 'fork' to avoid pickling C++ objects
 # This must be done before any multiprocessing is used
@@ -270,18 +271,60 @@ def remote(func: Callable) -> RemoteFunction:
 # 获取远程对象
 # ============================================================
 
-def get(object_ref: 'core.ObjectRef') -> Any:
+def _get_one_with_wait(object_ref: 'core.ObjectRef',
+                       timeout_s: float = 10.0,
+                       poll_interval: float = 0.01) -> Any:
     """
-    获取远程对象的值
-
-    从 ObjectStore 获取数据并反序列化
-    注意：阻塞调用，等待对象准备好
+    阻塞等待单个 ObjectRef 的值可用：
+    - 如果对象已经在 ObjectStore 里：立刻返回
+    - 如果还没写进去：循环重试，直到超时
     """
     if not _initialized:
         raise RuntimeError("Mini-Ray 未初始化，请先调用 miniray.init()")
 
-    data = _global_core_worker.get_object(object_ref)
-    result = pickle.loads(data)
-    print(f"📥 获取结果: {object_ref} -> {result}")
+    deadline = None if timeout_s is None else (time.time() + timeout_s)
+    last_err: Optional[Exception] = None
 
-    return result
+    while True:
+        try:
+            data = _global_core_worker.get_object(object_ref)
+            result = pickle.loads(data)
+            print(f"📥 获取结果: {object_ref} -> {result}")
+            return result
+        except RuntimeError as e:
+            msg = str(e)
+            # 只有 "Object not found" 说明 worker 还没写结果，可以重试
+            if "Object not found" not in msg:
+                # 其它错误直接抛
+                raise
+
+            last_err = e
+            # 检查是否超时
+            if deadline is not None and time.time() >= deadline:
+                raise RuntimeError(
+                    f"Timeout waiting for object: {object_ref.to_hex()}"
+                ) from last_err
+
+            # 还没超时，小睡一下再试
+            time.sleep(poll_interval)
+
+
+def get(object_refs: Union['core.ObjectRef', List['core.ObjectRef']],
+        timeout_s: float = 10.0) -> Any:
+    """
+    获取远程对象的值（阻塞直到准备好）
+
+    支持：
+      - ray.get(ref)          -> 单个结果
+      - ray.get([ref1, ref2]) -> 结果列表
+    """
+    if isinstance(object_refs, core.ObjectRef):
+        # 单个 ObjectRef
+        return _get_one_with_wait(object_refs, timeout_s=timeout_s)
+    else:
+        # 多个 ObjectRef
+        results: List[Any] = []
+        for ref in object_refs:
+            result = _get_one_with_wait(ref, timeout_s=timeout_s)
+            results.append(result)
+        return results

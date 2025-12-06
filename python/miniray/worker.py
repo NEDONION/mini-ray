@@ -42,13 +42,7 @@ import os
 import time
 import traceback
 from typing import Optional
-
-# Try to use cloudpickle for better function serialization
-# If not available, fall back to standard pickle
-try:
-    import cloudpickle as pickle
-except ImportError:
-    import pickle
+import cloudpickle as pickle
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MINI_RAY_DIR = os.path.join(PROJECT_ROOT, 'python', 'miniray')
