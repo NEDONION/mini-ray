@@ -36,14 +36,34 @@ namespace miniray {
 namespace core_worker {
 
 /**
- * 初始化列表 + std::move 的最佳实践
+ * @brief CoreWorker 构造函数实现
+ *
+ * 初始化列表 + std::move 的最佳实践：
  *
  * std::move 将参数转为右值，触发 shared_ptr 的移动构造
- * 比拷贝构造高效（不增加引用计数）
+ * - 移动构造：转移所有权，不增加引用计数
+ * - 拷贝构造：共享所有权，增加引用计数
+ *
+ * 例子：
+ * ```cpp
+ * auto sched = make_shared<Scheduler>(true);  // 引用计数 = 1
+ * CoreWorker w(sched);  // 拷贝参数到成员，引用计数 = 2
+ * // w.scheduler_ 和 sched 都指向同一对象
+ *
+ * auto sched2 = make_shared<Scheduler>(true);  // 引用计数 = 1
+ * CoreWorker w2(std::move(sched2));  // 移动参数到成员，引用计数 = 1
+ * // w2.scheduler_ 指向对象，sched2 = nullptr
+ * ```
+ *
+ * 为什么这样设计？
+ * - 调用方可以选择拷贝或移动
+ * - 避免强制拷贝（如果参数是 const&）
+ * - 避免强制移动（如果参数是 &&）
+ * - 灵活性最大化
  */
 CoreWorker::CoreWorker(
-    std::shared_ptr<shared::SharedScheduler> scheduler,
-    std::shared_ptr<shared::SharedObjectStore> object_store,
+    std::shared_ptr<raylet::Scheduler> scheduler,
+    std::shared_ptr<object_store::ObjectStore> object_store,
     int worker_id)
     : scheduler_(std::move(scheduler)),
       object_store_(std::move(object_store)),
@@ -51,28 +71,43 @@ CoreWorker::CoreWorker(
 }
 
 ObjectRef CoreWorker::SubmitTask(const Task& task) {
+    // 通过 -> 运算符调用 shared_ptr 指向的对象的方法
+    // scheduler_ 是 shared_ptr<Scheduler>
+    // scheduler_->SubmitTask(...) 等价于 (*scheduler_).SubmitTask(...)
     scheduler_->SubmitTask(task);
+
+    // 返回任务的 return_ref
+    // 调用方可以立即使用这个 ObjectRef，但 Get 时可能阻塞等待结果
     return task.return_ref;
 }
 
 std::shared_ptr<Task> CoreWorker::GetNextTask() {
+    // 从调度器获取下一个任务
+    // 如果队列为空，返回 nullptr
     return scheduler_->GetNextTask();
 }
 
 void CoreWorker::PutObject(const ObjectRef& object_ref,
                            const std::vector<uint8_t>& data) {
+    // 使用指定的 ObjectRef 存储对象
+    // ObjectRef 应该提前创建，避免竞态条件
     object_store_->Put(object_ref, data);
 }
 
 std::shared_ptr<Buffer> CoreWorker::GetObject(const ObjectRef& object_ref) {
+    // 从对象存储获取对象
+    // 返回 shared_ptr<Buffer>，自动管理生命周期
     return object_store_->Get(object_ref);
 }
 
 void CoreWorker::MarkWorkerBusy() {
+    // 标记当前 Worker 为忙碌
+    // worker_id_ 是成员变量，标识当前 Worker
     scheduler_->MarkWorkerBusy(worker_id_);
 }
 
 void CoreWorker::MarkWorkerIdle() {
+    // 标记当前 Worker 为空闲
     scheduler_->MarkWorkerIdle(worker_id_);
 }
 

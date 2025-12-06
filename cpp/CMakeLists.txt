@@ -4,7 +4,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 # 收集源文件
 set(MINIRAY_SOURCES
     src/python_bindings.cpp
-    src/core_worker/core_worker.cpp   # Phase 2: CoreWorker 实现
+    src/common/memory.cpp              # 共享内存管理
+    src/object_store/object_store.cpp  # 对象存储
+    src/raylet/scheduler.cpp           # 调度器
+    src/core_worker/core_worker.cpp    # CoreWorker 实现
 )
 
 # 创建 Python 扩展模块
