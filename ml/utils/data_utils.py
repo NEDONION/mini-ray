@@ -3,7 +3,7 @@ import os
 from torchvision.datasets import CIFAR10
 from torchvision import transforms
 
-def ensure_cifar10_downloaded(global_root="~/data", project_root="./data"):
+def ensure_cifar10_downloaded(global_root="/root/data", project_root="./data"):
     if os.path.exists(os.path.join(global_root, "cifar-10-batches-py")):
         print(f"✔ CIFAR-10 已存在于全局目录: {global_root}")
         return global_root
