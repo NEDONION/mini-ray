@@ -104,7 +104,7 @@ pip install -e .
 pytest tests/ -v
 ```
 
-### GPU Server
+### GPU Server 拉取项目
 
 ```bash
 # 如果没有 unzip 先装一个
@@ -123,18 +123,64 @@ rm mini-ray.zip
 
 cd mini-ray
 
-# 完整项目依赖
+python3 -m venv .venv
+source .venv/bin/activate
+
 pip install -r requirements.txt
 
 # pybind11 安装可能有问题
 pip uninstall -y pybind11
 pip install "pybind11[global]"
 
-# 构建 C++ 扩展模块
 pip install -e .
 
-# 验证安装
 pytest tests/ -v
+```
+
+### GPU Server 重新拉取项目
+
+```bash
+cd ~   # 或你想放的目录
+
+# 重新下载新版
+wget --no-check-certificate \
+  https://codeload.github.com/NEDONION/mini-ray/zip/refs/heads/main \
+  -O mini-ray.zip
+
+unzip -o mini-ray.zip  # -o 覆盖旧文件
+rm mini-ray.zip
+
+# 覆盖旧目录
+rm -rf mini-ray
+mv mini-ray-main mini-ray
+
+cd mini-ray
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 重新安装 Python 依赖（如果 requirements 有变化）
+pip install -r requirements.txt
+
+# pybind11 安装可能有问题
+pip uninstall -y pybind11
+pip install "pybind11[global]"
+
+# 重新构建 C++ 模块
+pip install -e .
+```
+
+### GPU Server 数据集下载
+
+```bash
+# 用官方源 + 多线程下载
+cd /root/mini-ray/data
+aria2c -x 16 -s 16 \
+  -o cifar-10-python.tar.gz \
+  "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
+
+tar -xzf cifar-10-python.tar.gz
+rm cifar-10-python.tar.gz
 ```
 
 ### 验证安装

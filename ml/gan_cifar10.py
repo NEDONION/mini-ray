@@ -18,92 +18,59 @@ import os
 # Generator 网络
 # ============================================================
 
+# CIFAR-10 DCGAN 风格 Generator
 class Generator(nn.Module):
-    """
-    生成器网络 - 从随机噪声生成图片
-    输入: (batch_size, latent_dim)
-    输出: (batch_size, 3, 32, 32) CIFAR-10 图片
-    """
-    def __init__(self, latent_dim=100):
-        super(Generator, self).__init__()
+    def __init__(self, latent_dim=100, ngf=64):
+        super().__init__()
         self.latent_dim = latent_dim
-
         self.main = nn.Sequential(
-            # 输入: latent_dim
-            nn.Linear(latent_dim, 256),
+            # 输入 z: (N, latent_dim, 1, 1)
+            nn.ConvTranspose2d(latent_dim, ngf*4, 4, 1, 0, bias=False),  # 4x4
+            nn.BatchNorm2d(ngf*4),
             nn.ReLU(True),
-            nn.BatchNorm1d(256),
 
-            nn.Linear(256, 512),
+            nn.ConvTranspose2d(ngf*4, ngf*2, 4, 2, 1, bias=False),       # 8x8
+            nn.BatchNorm2d(ngf*2),
             nn.ReLU(True),
-            nn.BatchNorm1d(512),
 
-            nn.Linear(512, 1024),
+            nn.ConvTranspose2d(ngf*2, ngf, 4, 2, 1, bias=False),         # 16x16
+            nn.BatchNorm2d(ngf),
             nn.ReLU(True),
-            nn.BatchNorm1d(1024),
 
-            nn.Linear(1024, 3 * 32 * 32),
-            nn.Tanh()  # 输出范围 [-1, 1]
+            nn.ConvTranspose2d(ngf, 3, 4, 2, 1, bias=False),             # 32x32
+            nn.Tanh()
         )
 
     def forward(self, z):
-        """
-        前向传播
-
-        Args:
-            z: 随机噪声 (batch_size, latent_dim)
-
-        Returns:
-            生成的图片 (batch_size, 3, 32, 32)
-        """
-        out = self.main(z)
-        return out.view(-1, 3, 32, 32)
+        # z: (N, latent_dim)
+        z = z.view(-1, self.latent_dim, 1, 1)
+        return self.main(z)
 
 
-# ============================================================
-# Discriminator 网络
-# ============================================================
-
+# CIFAR-10 DCGAN 风格 Discriminator
 class Discriminator(nn.Module):
-    """
-    判别器网络 - 判断图片是真实的还是生成的
-    输入: (batch_size, 3, 32, 32)
-    输出: (batch_size, 1) 真实概率
-    """
-    def __init__(self):
-        super(Discriminator, self).__init__()
-
+    def __init__(self, ndf=64):
+        super().__init__()
         self.main = nn.Sequential(
-            # 输入: 3 x 32 x 32
-            nn.Flatten(),
-
-            nn.Linear(3 * 32 * 32, 1024),
+            # 输入: (N,3,32,32)
+            nn.Conv2d(3, ndf, 4, 2, 1, bias=False),      # 16x16
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Dropout(0.3),
 
-            nn.Linear(1024, 512),
+            nn.Conv2d(ndf, ndf*2, 4, 2, 1, bias=False),  # 8x8
+            nn.BatchNorm2d(ndf*2),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Dropout(0.3),
 
-            nn.Linear(512, 256),
+            nn.Conv2d(ndf*2, ndf*4, 4, 2, 1, bias=False), # 4x4
+            nn.BatchNorm2d(ndf*4),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Dropout(0.3),
 
-            nn.Linear(256, 1),
-            nn.Sigmoid()  # 输出概率 [0, 1]
+            nn.Conv2d(ndf*4, 1, 4, 1, 0, bias=False),    # 1x1
+            nn.Sigmoid()
         )
 
-    def forward(self, img):
-        """
-        前向传播
-
-        Args:
-            img: 图片 (batch_size, 3, 32, 32)
-
-        Returns:
-            真实概率 (batch_size, 1)
-        """
-        return self.main(img)
+    def forward(self, x):
+        out = self.main(x)       # (N,1,1,1)
+        return out.view(-1, 1)
 
 
 # ============================================================

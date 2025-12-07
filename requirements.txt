@@ -4,7 +4,8 @@
 # =================================================================
 # Mini-Ray Core Dependencies
 # =================================================================
-# 暂无特殊依赖（使用 Python 标准库实现）
+# 核心框架使用 Python 标准库，无额外依赖
+
 
 # =================================================================
 # Dashboard Dependencies
@@ -14,6 +15,7 @@ psutil>=5.8.0
 # GPUtil (可选，用于 GPU 监控)
 # GPUtil>=1.4.0
 
+
 # =================================================================
 # ML Module Dependencies (GAN for CIFAR-10)
 # =================================================================
@@ -22,32 +24,18 @@ torch>=2.0.0
 torchvision>=0.15.0
 
 # Data Processing
-numpy<2.0  # IMPORTANT: PyTorch 2.x requires numpy<2.0
+numpy<2.0   # IMPORTANT: PyTorch 2.x requires numpy<2.0
 pillow>=9.0.0
 
 # Visualization
 matplotlib>=3.5.0
 
-# =================================================================
-# Development Dependencies (Optional)
-# =================================================================
-# pytest>=7.0.0
-# pybind11>=2.12.0  # 如果需要重新编译 C++ 扩展
 
 # =================================================================
-# Installation Instructions
+# Development / Build Dependencies (Optional but Recommended)
 # =================================================================
-# 1. 创建虚拟环境:
-#    python3 -m venv .venv
-#    source .venv/bin/activate  # Linux/Mac
-#    # .venv\Scripts\activate   # Windows
-#
-# 2. 安装所有依赖:
-#    pip install -r requirements.txt
-#
-# 3. 仅安装 ML 模块依赖:
-#    pip install -r ml/requirements.txt
-#
-# 4. macOS 用户注意:
-#    如果遇到 fork() 安全问题，运行前设置:
-#    export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+# 为构建 C++ 扩展模块或运行测试，推荐安装：
+# pybind11>=2.12.0
+# setuptools>=60.0.0
+# pytest>=7.0.0
+# cloudpickle>=2.0.0
