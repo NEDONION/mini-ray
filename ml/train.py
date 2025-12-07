@@ -78,8 +78,6 @@ def train_distributed(epochs=10, batch_size=128, num_workers=4, sync_interval=5,
     Returns:
         训练历史, workers
     """
-    from miniray.dashboard import get_collector
-
     ensure_cifar10_downloaded()
 
     print("\n" + "="*70)
@@ -94,9 +92,6 @@ def train_distributed(epochs=10, batch_size=128, num_workers=4, sync_interval=5,
     print(f"  Learning Rate: {lr}")
     print()
 
-    collector = get_collector()
-    job_id = f"gan-dist-{int(time.time())}"
-
     trainer = DistributedGANTrainer(
         num_workers=num_workers,
         latent_dim=latent_dim,
@@ -106,9 +101,7 @@ def train_distributed(epochs=10, batch_size=128, num_workers=4, sync_interval=5,
     history, workers = trainer.train(
         epochs=epochs,
         batch_size=batch_size,
-        sync_interval=sync_interval,
-        job_id=job_id,
-        collector=collector
+        sync_interval=sync_interval
     )
 
     print(f"\n✅ 所有 Worker 模型已保存到: ./models/distributed_gan/")
