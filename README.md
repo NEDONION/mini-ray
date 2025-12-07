@@ -88,11 +88,11 @@ cd mini-ray
 
 # 2. 创建虚拟环境（推荐）
 python3 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 
 # 3. 安装依赖
 pip install --upgrade pip
-pip install pybind11 setuptools pytest cloudpickle
+pip install pybind11 setuptools pytest cloudpickle psutil
 
 # 4. 构建 C++ 扩展模块
 pip install -e .
