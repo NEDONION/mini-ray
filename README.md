@@ -185,6 +185,21 @@ tar -xzf cifar-10-python.tar.gz
 rm cifar-10-python.tar.gz
 ```
 
+```bash
+# /autodl-pub/data
+cd /autodl-pub/data
+
+# 已经有的数据集
+ADEChallengeData2016  CULane      GOT10k                      MOT20                   TT100K               cityscapes
+Aishell               CelebA      ILSVRC2015                  ModelNet                TrackingNet          horse2zebra.zip
+BERT-Pretrain-Model   CrowdHuman  ImageNet                    NUSWIDE                 VOCdevkit            mot17
+CASIAWebFace          DIV2K       ImageNet-mini               Objects365              Vimeo-90k            mpii_human_pose
+CMLR                  DOTA        KITTI                       RoBERTa-Pretrain-Model  argoverse2.0-sensor  mvtec_anomaly_detection.tar.xz
+COCO2017              DRIVE       KITTI_Depth_Completion.tar  S3DIS                   cifar-10             nuScenes
+CUB200-2011           Flickr2K    LaSOT                       SemanticKITTI           cifar-100            vangogh2photo.zip
+```
+
+
 ### 验证安装
 
 ```bash
