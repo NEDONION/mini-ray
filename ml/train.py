@@ -29,6 +29,8 @@ def train_single(epochs=10, batch_size=128, latent_dim=100, lr=0.0002, save_dir=
     """
     from miniray.dashboard import get_collector
 
+    ensure_cifar10_downloaded(root="./data")
+
     print("\n" + "="*70)
     print("  单机 GAN 训练")
     print("="*70)
@@ -75,6 +77,8 @@ def train_distributed(epochs=10, batch_size=128, num_workers=4, sync_interval=5,
     """
     from miniray.dashboard import get_collector
 
+    ensure_cifar10_downloaded(root="./data")
+
     print("\n" + "="*70)
     print("  分布式 GAN 训练")
     print("="*70)
@@ -106,6 +110,18 @@ def train_distributed(epochs=10, batch_size=128, num_workers=4, sync_interval=5,
 
     print(f"\n✅ 所有 Worker 模型已保存到: ./models/distributed_gan/")
     return history, workers
+
+def ensure_cifar10_downloaded(root="./data"):
+    from torchvision.datasets import CIFAR10
+    from torchvision import transforms
+
+    if not os.path.exists(os.path.join(root, "cifar-10-batches-py")):
+        print("📥 CIFAR-10 数据集不存在，正在下载...")
+        CIFAR10(root=root, train=True, download=True, transform=transforms.ToTensor())
+        print("✅ CIFAR-10 下载完成")
+    else:
+        print("✔ CIFAR-10 已存在，无需下载")
+
 
 
 def main():

@@ -83,7 +83,7 @@ Mini-Ray 是一个**教学项目**，高度还原 Ray 的核心架构：
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/your-repo/mini-ray.git
+git clone https://github.com/NEDONION/mini-ray.git
 cd mini-ray
 
 # 2. 创建虚拟环境（推荐）
@@ -94,7 +94,6 @@ source .venv/bin/activate
 pip install --upgrade pip
 # 仅 ML 依赖
 pip install -r ml/requirements.txt
-
 # 完整项目依赖
 pip install -r requirements.txt
 
@@ -102,6 +101,39 @@ pip install -r requirements.txt
 pip install -e .
 
 # 5. 验证安装
+pytest tests/ -v
+```
+
+### GPU Server
+
+```bash
+# 如果没有 unzip 先装一个
+sudo apt update
+sudo apt install -y unzip
+
+# 用 codeload 下 zip（比 git 稳很多）
+wget --no-check-certificate \
+  https://codeload.github.com/NEDONION/mini-ray/zip/refs/heads/main \
+  -O mini-ray.zip
+
+# 解压
+unzip mini-ray.zip
+mv mini-ray-main mini-ray
+rm mini-ray.zip
+
+cd mini-ray
+
+# 完整项目依赖
+pip install -r requirements.txt
+
+# pybind11 安装可能有问题
+pip uninstall -y pybind11
+pip install "pybind11[global]"
+
+# 构建 C++ 扩展模块
+pip install -e .
+
+# 验证安装
 pytest tests/ -v
 ```
 

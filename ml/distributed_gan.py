@@ -76,7 +76,7 @@ class DistributedGANWorker:
         full_dataset = torchvision.datasets.CIFAR10(
             root='./data',
             train=True,
-            download=True,
+            download=False,
             transform=transform
         )
 
