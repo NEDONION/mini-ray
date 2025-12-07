@@ -92,7 +92,11 @@ source .venv/bin/activate
 
 # 3. 安装依赖
 pip install --upgrade pip
-pip install pybind11 setuptools pytest cloudpickle psutil
+# 仅 ML 依赖
+pip install -r ml/requirements.txt
+
+# 完整项目依赖
+pip install -r requirements.txt
 
 # 4. 构建 C++ 扩展模块
 pip install -e .

@@ -249,3 +249,22 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# ============================================================
+# Project Data / Models
+# ============================================================
+
+# 训练数据集（如 CIFAR-10）
+data/
+!data/.gitkeep
+!data/README.md
+
+# 训练好的模型权重
+models/
+generated_images/
+
+# 通用模型文件
+*.pth
+*.pt
+*.ckpt
+*.npz

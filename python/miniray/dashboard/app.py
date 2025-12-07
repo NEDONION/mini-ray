@@ -4,7 +4,8 @@ Mini-Ray Dashboard - Flask 应用
 提供简单的 Web UI 监控 Mini-Ray 的运行状态
 """
 import os
-from flask import Flask, render_template, jsonify
+import signal
+from flask import Flask, render_template, jsonify, request
 from .collector import get_collector
 
 
@@ -21,12 +22,24 @@ collector = get_collector()
 
 @app.route('/')
 def index():
-    """主页 - Dashboard v2"""
-    return render_template('dashboard_v2.html')
+    """主页 - 新版 Dashboard（完全真实数据，无 mock）"""
+    return render_template('dashboard.html')
 
 # ============================================================
 # API 路由
 # ============================================================
+
+@app.route('/api/system-info')
+def get_system_info():
+    """
+    获取系统硬件信息
+
+    Returns:
+        JSON 格式的系统信息（CPU型号、内存、磁盘、GPU等）
+    """
+    system_info = collector.get_system_info()
+    return jsonify(system_info)
+
 
 @app.route('/api/stats')
 def get_stats():

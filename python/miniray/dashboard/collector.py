@@ -115,17 +115,47 @@ class MetricsCollector:
             'last_updated': time.time(),
         }
 
+    def get_system_info(self):
+        """获取系统硬件信息（一次性，不变的信息）"""
+        import platform
+
+        info = {
+            'system': platform.system(),  # Darwin, Linux, Windows
+            'platform': platform.platform(),
+            'machine': platform.machine(),  # x86_64, arm64
+            'processor': platform.processor(),
+            'cpu_count': psutil.cpu_count(logical=False),  # 物理核心
+            'cpu_count_logical': psutil.cpu_count(logical=True),  # 逻辑核心
+            'cpu_freq': psutil.cpu_freq()._asdict() if psutil.cpu_freq() else {},
+            'memory_total_gb': psutil.virtual_memory().total / (1024**3),
+            'disk_total_gb': psutil.disk_usage('/').total / (1024**3),
+        }
+
+        # 尝试获取 GPU 信息（如果安装了相关库）
+        try:
+            import GPUtil
+            gpus = GPUtil.getGPUs()
+            info['gpus'] = [{'name': gpu.name, 'memory_total_mb': gpu.memoryTotal} for gpu in gpus]
+        except:
+            info['gpus'] = []
+
+        return info
+
     def collect_system_metrics(self):
-        """收集系统指标"""
+        """收集系统实时指标"""
         cpu_percent = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
 
         metrics = {
             'timestamp': time.time(),
             'cpu_percent': cpu_percent,
             'memory_percent': memory.percent,
-            'memory_used_mb': memory.used / (1024 * 1024),
-            'memory_total_mb': memory.total / (1024 * 1024),
+            'memory_used_gb': memory.used / (1024**3),
+            'memory_total_gb': memory.total / (1024**3),
+            'disk_percent': disk.percent,
+            'disk_used_gb': disk.used / (1024**3),
+            'disk_total_gb': disk.total / (1024**3),
         }
 
         self.metrics_history.append(metrics)

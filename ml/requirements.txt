@@ -1,0 +1,17 @@
+# Mini-Ray ML Module Requirements
+# 用于 GAN 训练和图片生成
+
+# Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Data Processing
+numpy<2.0  # PyTorch compatibility requires numpy<2.0
+pillow>=9.0.0
+
+# Visualization
+matplotlib>=3.5.0
+
+# Optional: 用于 Dashboard 集成
+# 如果要使用 Dashboard 监控训练过程，需要安装 miniray 的 Dashboard 依赖
+# 参见根目录的 requirements.txt
