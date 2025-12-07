@@ -35,7 +35,7 @@ matplotlib>=3.5.0
 # Development / Build Dependencies (Optional but Recommended)
 # =================================================================
 # 为构建 C++ 扩展模块或运行测试，推荐安装：
-# pybind11>=2.12.0
-# setuptools>=60.0.0
-# pytest>=7.0.0
-# cloudpickle>=2.0.0
+pybind11>=2.12.0
+setuptools>=60.0.0
+pytest>=7.0.0
+cloudpickle>=2.0.0

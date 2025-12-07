@@ -141,7 +141,6 @@ pytest tests/ -v
 
 ```bash
 cd ~   # 或你想放的目录
-
 # 重新下载新版
 wget --no-check-certificate \
   https://codeload.github.com/NEDONION/mini-ray/zip/refs/heads/main \
@@ -155,6 +154,9 @@ rm -rf mini-ray
 mv mini-ray-main mini-ray
 
 cd mini-ray
+
+# 如果创建虚拟环境报错
+hash -r
 
 python3 -m venv .venv
 source .venv/bin/activate
