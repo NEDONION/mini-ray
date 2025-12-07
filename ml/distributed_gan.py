@@ -238,3 +238,120 @@ class DistributedGANTrainer:
 
         print("\n===== 训练结束 =====")
         return history, workers
+
+# ============================================================
+# 分布式图片生成 Worker
+# ============================================================
+
+@miniray.remote
+class DistributedImageGenerator:
+    """
+    负责加载 Generator 并生成图片
+    """
+    def __init__(self, worker_id, latent_dim=100, device=None):
+        self.worker_id = worker_id
+        self.latent_dim = latent_dim
+        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.generator = None
+        print(f"[GenWorker {worker_id}] 初始化 - 设备: {self.device}")
+
+    def load_model(self, model_path):
+        """加载训练好的 Generator 模型"""
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"模型不存在: {model_path}")
+
+        self.generator = Generator(self.latent_dim).to(self.device)
+        self.generator.load_state_dict(torch.load(model_path, map_location=self.device))
+        self.generator.eval()
+        return f"[GenWorker {self.worker_id}] 模型加载完成"
+
+    def generate_images(self, num_images, seed=None):
+        """生成批量图片并返回 numpy 数组"""
+        if self.generator is None:
+            raise RuntimeError("Generator 未加载，请先调用 load_model()")
+
+        if seed is not None:
+            torch.manual_seed(seed + self.worker_id)
+            np.random.seed(seed + self.worker_id)
+
+        with torch.no_grad():
+            z = torch.randn(num_images, self.latent_dim).to(self.device)
+            fake = self.generator(z)
+
+            # (N, C, H, W) → (N, H, W, C)
+            imgs = fake.cpu().numpy()
+            imgs = np.transpose(imgs, (0, 2, 3, 1))
+
+            # 反归一化 [-1,1] → [0,1]
+            imgs = (imgs + 1) / 2.0
+            imgs = np.clip(imgs, 0, 1)
+
+            return imgs
+
+
+# ============================================================
+# 分布式图片生成协调器（可独立使用）
+# ============================================================
+
+class DistributedImageGeneratorCoordinator:
+    """
+    控制多个 Worker 并行生成大量图片
+    """
+
+    def __init__(self, num_workers=4, latent_dim=100):
+        self.num_workers = num_workers
+        self.latent_dim = latent_dim
+
+    def generate(self, model_path, total_images=100, save_dir="./generated_images", seed=42):
+        print("\n====================== 分布式图片生成 ======================")
+        print(f"模型: {model_path}")
+        print(f"总图片数: {total_images}")
+        print(f"Workers: {self.num_workers}")
+
+        # 初始化 Mini-Ray
+        if not hasattr(miniray, "_initialized") or not miniray._initialized:
+            miniray.init(num_workers=self.num_workers)
+            print(f"Mini-Ray 已初始化 ({self.num_workers} workers)")
+
+        # 启动 Workers
+        workers = [
+            DistributedImageGenerator.remote(i, self.latent_dim)
+            for i in range(self.num_workers)
+        ]
+
+        # 加载模型
+        print("📦 加载模型到 Workers ...")
+        load_refs = [w.load_model.remote(model_path) for w in workers]
+        msgs = miniray.get(load_refs)
+        for msg in msgs:
+            print(msg)
+
+        # 每个 worker 的生成数量
+        base = total_images // self.num_workers
+        extra = total_images % self.num_workers
+
+        gen_refs = []
+        for i, w in enumerate(workers):
+            n = base + (extra if i == self.num_workers - 1 else 0)
+            ref = w.generate_images.remote(n, seed=seed)
+            gen_refs.append(ref)
+
+        print("🎨 正在生成图片 ...")
+        batches = miniray.get(gen_refs)
+
+        # 合并所有结果
+        imgs = np.concatenate(batches, axis=0)
+        print(f"生成完成: {imgs.shape[0]} 张")
+
+        # 保存图片
+        os.makedirs(save_dir, exist_ok=True)
+        from PIL import Image
+
+        for idx, img in enumerate(imgs):
+            pil_img = Image.fromarray((img * 255).astype(np.uint8))
+            pil_img.save(f"{save_dir}/generated_{idx:04d}.png")
+
+        print(f"已保存到 {save_dir}")
+        print("\n====================== 完成 ======================\n")
+
+        return imgs
