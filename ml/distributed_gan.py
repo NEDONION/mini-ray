@@ -410,30 +410,48 @@ class DistributedGANTrainer:
 
     def _average_model_states(self, states):
         """
-        平均聚合多个模型参数
+        聚合来自多个 Worker 的模型参数（参数平均）。
 
-        Args:
-            states: 模型状态字典列表
+        处理规则：
+        - 浮点张量（权重/偏置/BN running stats）：
+            使用 stack + mean 做参数平均。
+        - 整型/布尔张量（如 BatchNorm.num_batches_tracked）：
+            无法平均，也没有平均意义，直接取第 0 个 Worker 的值。
+        - 非 Tensor 类型：
+            直接取第 0 个 Worker 的值。
 
-        Returns:
-            平均后的状态字典
+        参数:
+            states: List[Dict]
+                每个 Worker 返回的 state_dict 列表。
+
+        返回:
+            avg_state: Dict
+                聚合后的模型参数字典。
         """
         avg_state = {}
 
-        # 对 generator 和 discriminator 分别平均
         for model_name in ['generator', 'discriminator']:
             avg_state[model_name] = {}
-
-            # 获取第一个模型的所有参数名
             param_names = states[0][model_name].keys()
 
             for param_name in param_names:
-                # 收集所有 worker 的这个参数
-                params = [state[model_name][param_name] for state in states]
+                params = [s[model_name][param_name] for s in states]
+                first = params[0]
 
-                # 计算平均值
-                avg_param = torch.stack(params).mean(dim=0)
-                avg_state[model_name][param_name] = avg_param
+                # 非 tensor（比如 None、标量）直接拿第一个
+                if not isinstance(first, torch.Tensor):
+                    avg_state[model_name][param_name] = first
+                    continue
+
+                # 浮点 / 复数：做平均
+                if torch.is_floating_point(first) or torch.is_complex(first):
+                    stacked = torch.stack(params, dim=0)
+                    avg_param = stacked.mean(dim=0)
+                    avg_state[model_name][param_name] = avg_param
+                else:
+                    # 整型 / Bool：直接用第一个 worker 的值即可
+                    # 典型如 BatchNorm.num_batches_tracked
+                    avg_state[model_name][param_name] = first
 
         return avg_state
 
