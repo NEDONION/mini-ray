@@ -32,7 +32,7 @@ def train_single(epochs=10, batch_size=128, latent_dim=100, lr=0.0002, save_dir=
     """
     from miniray.dashboard import get_collector
 
-    data_root = ensure_cifar10_downloaded(
+    ensure_cifar10_downloaded(
         global_root="/root/data",
         project_root="./data"
     )
@@ -83,7 +83,7 @@ def train_distributed(epochs=10, batch_size=128, num_workers=4, sync_interval=5,
     """
     from miniray.dashboard import get_collector
 
-    data_root = ensure_cifar10_downloaded(
+    ensure_cifar10_downloaded(
         global_root="/root/data",
         project_root="./data"
     )
