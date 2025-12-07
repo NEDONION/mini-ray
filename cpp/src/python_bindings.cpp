@@ -61,6 +61,7 @@ PYBIND11_MODULE(_miniray_core, m) {
     py::class_<ObjectID>(m, "ObjectID")
         .def(py::init<>())
         .def_static("from_random", &ObjectID::FromRandom)
+        .def_static("from_hex", &ObjectID::FromHex, py::arg("hex_string"))
         .def("to_hex", &ObjectID::ToHex)
         .def("is_nil", &ObjectID::IsNil)
         .def("__eq__", &ObjectID::operator==)
@@ -78,6 +79,9 @@ PYBIND11_MODULE(_miniray_core, m) {
     py::class_<ObjectRef>(m, "ObjectRef")
         .def(py::init<>())
         .def(py::init<const ObjectID&>(), py::arg("object_id"))
+        .def_static("from_hex", [](const std::string& hex_string) {
+            return ObjectRef(ObjectID::FromHex(hex_string));
+        }, py::arg("hex_string"))
         .def("id", &ObjectRef::ID)
         .def("to_hex", &ObjectRef::ToHex)
         .def("__eq__", &ObjectRef::operator==)
@@ -125,6 +129,11 @@ PYBIND11_MODULE(_miniray_core, m) {
             std::vector<uint8_t> vec(str.begin(), str.end());
             return store.Put(vec);
         }, py::arg("data"))
+        .def("put_with_ref", [](object_store::ObjectStore& store, py::bytes data, const ObjectRef& ref) {
+            std::string str = data;
+            std::vector<uint8_t> vec(str.begin(), str.end());
+            return store.Put(ref, vec);
+        }, py::arg("data"), py::arg("ref"))
         .def("get", [](object_store::ObjectStore& store, const ObjectRef& object_ref) {
             auto buffer = store.Get(object_ref);
             return py::bytes(reinterpret_cast<const char*>(buffer->Data()),

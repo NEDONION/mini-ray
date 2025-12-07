@@ -4,10 +4,9 @@ Actor 是有状态的对象，方法调用会被串行化执行
 """
 
 import uuid
+import cloudpickle as pickle
 from typing import Any, Callable
-from multiprocessing import Process, Queue, Manager
-
-from .core import ObjectRef, ObjectStore
+from multiprocessing import Process, Queue
 
 
 class ActorClass:
@@ -27,9 +26,9 @@ class ActorClass:
         Returns:
             ActorHandle: Actor 句柄
         """
-        from .api import _global_scheduler
+        from .api import _initialized
 
-        if _global_scheduler is None:
+        if not _initialized:
             raise RuntimeError("Mini-Ray 未初始化，请先调用 miniray.init()")
 
         # 创建 Actor 进程
@@ -38,8 +37,7 @@ class ActorClass:
             actor_id=actor_id,
             cls=self._cls,
             init_args=args,
-            init_kwargs=kwargs,
-            object_store=_global_scheduler.object_store
+            init_kwargs=kwargs
         )
 
         # 启动 Actor 进程
@@ -59,19 +57,15 @@ class ActorHandle:
         actor_id: str,
         cls: type,
         init_args: tuple,
-        init_kwargs: dict,
-        object_store: ObjectStore
+        init_kwargs: dict
     ):
         self.actor_id = actor_id
         self._cls = cls
         self._init_args = init_args
         self._init_kwargs = init_kwargs
-        self._object_store = object_store
 
         # Actor 的方法调用队列
-        manager = Manager()
         self._method_queue = Queue()
-        self._store_dict = manager.dict()
 
         # Actor 进程
         self._process = None
@@ -85,9 +79,9 @@ class ActorHandle:
                 self._cls,
                 self._init_args,
                 self._init_kwargs,
-                self._method_queue,
-                self._store_dict
-            )
+                self._method_queue
+            ),
+            daemon=True
         )
         self._process.start()
         print(f"[Actor-{self.actor_id[:8]}] 启动")
@@ -113,15 +107,23 @@ class ActorHandle:
         method_name: str,
         args: tuple,
         kwargs: dict
-    ) -> ObjectRef:
+    ):
         """提交方法调用到 Actor"""
-        result_ref = ObjectRef(str(uuid.uuid4()))
+        # 导入 C++ 核心模块
+        try:
+            from . import _miniray_core as core
+        except ImportError:
+            raise RuntimeError("无法导入 C++ 核心模块")
 
+        # 创建返回值引用
+        result_ref = core.ObjectRef()
+
+        # 序列化方法调用
         method_call = {
             'method_name': method_name,
             'args': args,
             'kwargs': kwargs,
-            'result_ref': result_ref
+            'result_ref_id': result_ref.to_hex()
         }
 
         self._method_queue.put(method_call)
@@ -145,7 +147,7 @@ class ActorMethod:
         self._actor_handle = actor_handle
         self._method_name = method_name
 
-    def remote(self, *args, **kwargs) -> ObjectRef:
+    def remote(self, *args, **kwargs):
         """远程调用方法"""
         return self._actor_handle._submit_method_call(
             self._method_name,
@@ -159,8 +161,7 @@ def actor_worker_loop(
     cls: type,
     init_args: tuple,
     init_kwargs: dict,
-    method_queue: Queue,
-    store_dict: dict
+    method_queue: Queue
 ):
     """
     Actor Worker 主循环
@@ -171,14 +172,21 @@ def actor_worker_loop(
         init_args: 初始化位置参数
         init_kwargs: 初始化关键字参数
         method_queue: 方法调用队列
-        store_dict: 共享对象存储
     """
+    # 导入 C++ 核心模块（在子进程中）
+    try:
+        from . import _miniray_core as core
+    except ImportError:
+        print(f"[Actor-{actor_id[:8]}] 无法导入 C++ 核心模块")
+        return
+
     print(f"[Actor-{actor_id[:8]}] 初始化...")
+
+    # Actor 进程连接到共享内存的 ObjectStore
+    object_store = core.ObjectStore(create=False)
 
     # 创建 Actor 实例
     actor_instance = cls(*init_args, **init_kwargs)
-
-    object_store = ObjectStore(store_dict)
 
     print(f"[Actor-{actor_id[:8]}] 就绪，等待方法调用")
 
@@ -193,7 +201,7 @@ def actor_worker_loop(
             method_name = method_call['method_name']
             args = method_call['args']
             kwargs = method_call['kwargs']
-            result_ref = method_call['result_ref']
+            result_ref_id = method_call['result_ref_id']
 
             print(f"[Actor-{actor_id[:8]}] 调用方法: {method_name}")
 
@@ -204,12 +212,21 @@ def actor_worker_loop(
                 # 执行方法
                 result = method(*args, **kwargs)
 
-                # 存储结果
-                store_dict[result_ref.object_id] = result
+                # 序列化结果并存储到 ObjectStore
+                serialized_result = pickle.dumps(result)
+
+                # 从 hex 字符串重建 ObjectRef
+                result_ref = core.ObjectRef.from_hex(result_ref_id)
+                object_store.put_with_ref(serialized_result, result_ref)
+
+                print(f"[Actor-{actor_id[:8]}] 方法完成: {method_name}")
 
             except Exception as e:
                 print(f"[Actor-{actor_id[:8]}] 方法调用失败: {e}")
-                store_dict[result_ref.object_id] = e
+                # 存储异常
+                serialized_error = pickle.dumps(e)
+                result_ref = core.ObjectRef.from_hex(result_ref_id)
+                object_store.put_with_ref(serialized_error, result_ref)
 
         except Exception:
             # Queue.get() 超时，继续循环

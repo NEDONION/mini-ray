@@ -304,24 +304,6 @@ mini-ray/                           # 项目根目录
 
 ---
 
-### ✅ Phase 2.5：代码重构（已完成）
-
-**主要变更**：
-- [x] 重构 C++ 目录结构（`shared/` → `common/`, `object_store/`, `raylet/`）
-- [x] 添加详细的设计文档级注释（每个类和方法）
-- [x] 创建标准测试套件（14 个 pytest 测试，100% 通过）
-- [x] 编写清晰的示例代码（3 个示例）
-- [x] 代码分离（头文件 + 实现文件）
-
-**重构亮点**：
-- 符合 Ray 的命名规范（`object_store::ObjectStore`, `raylet::Scheduler`）
-- 详细注释覆盖率 > 90%
-- 测试覆盖率 > 80%
-
-**文档**：[REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md)
-
----
-
 ### 🔄 Phase 3：Actor + ML 工作流 + Dashboard（规划中）
 
 **核心功能**（详见设计文档）：

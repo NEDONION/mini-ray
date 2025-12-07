@@ -69,6 +69,7 @@ except ImportError as e:
     sys.exit(1)
 
 from .worker import worker_process
+from .actor import ActorClass
 
 
 # ============================================================
@@ -252,9 +253,20 @@ class RemoteFunction:
         return self.func(*args, **kwargs)
 
 
-def remote(func: Callable) -> RemoteFunction:
+def remote(func_or_class):
     """
-    远程函数装饰器
+    远程函数/类装饰器
+
+    支持两种用法：
+    1. 装饰函数 -> 返回 RemoteFunction
+        @ray.remote
+        def func():
+            pass
+
+    2. 装饰类 -> 返回 ActorClass（Actor 模型）
+        @ray.remote
+        class MyActor:
+            pass
 
     装饰器语法：
         @remote
@@ -264,7 +276,15 @@ def remote(func: Callable) -> RemoteFunction:
     等价于：
         func = remote(func)
     """
-    return RemoteFunction(func)
+    import inspect
+
+    # 检查是类还是函数
+    if inspect.isclass(func_or_class):
+        # 返回 Actor 类包装器
+        return ActorClass(func_or_class)
+    else:
+        # 返回远程函数包装器
+        return RemoteFunction(func_or_class)
 
 
 # ============================================================

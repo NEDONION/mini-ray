@@ -50,6 +50,23 @@ public:
     }
 
     /**
+     * @brief 从十六进制字符串创建 ObjectID
+     */
+    static ObjectID FromHex(const std::string& hex_string) {
+        ObjectID id;
+        if (hex_string.length() != kLength * 2) {
+            throw std::invalid_argument("Invalid hex string length");
+        }
+
+        for (size_t i = 0; i < kLength; ++i) {
+            std::string byte_str = hex_string.substr(i * 2, 2);
+            id.data_[i] = static_cast<uint8_t>(std::stoi(byte_str, nullptr, 16));
+        }
+
+        return id;
+    }
+
+    /**
      * @brief 转换为十六进制字符串
      */
     std::string ToHex() const {
