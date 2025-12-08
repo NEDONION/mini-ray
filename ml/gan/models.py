@@ -423,3 +423,98 @@ class ImageGenerator:
             plt.imsave(f'{save_dir}/generated_{i:04d}.png', img)
 
         print(f"[ImageGenerator] {len(images)} 张图片已保存到 {save_dir}")
+
+
+# ============================================================
+# 分布式图片生成 Worker
+# ============================================================
+
+try:
+    import miniray
+
+    @miniray.remote
+    class ImageGeneratorWorker:
+        """
+        分布式图片生成 Worker
+
+        用于并行生成大量图片
+        """
+
+        def __init__(self, worker_id, latent_dim=100, device=None):
+            self.worker_id = worker_id
+            self.latent_dim = latent_dim
+            self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+
+            self.model = Generator(latent_dim).to(self.device)
+            self.model.eval()
+
+            print(f"[GeneratorWorker {worker_id}] 初始化完成 - 设备: {self.device}")
+
+        def load_model(self, model_path):
+            """加载训练好的生成器模型"""
+            self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+            self.model.eval()
+            print(f"[GeneratorWorker {self.worker_id}] 模型已加载: {model_path}")
+
+        def generate(self, num_images, seed=None):
+            """
+            生成图片
+
+            Args:
+                num_images: 生成图片数量
+                seed: 随机种子（可选）
+
+            Returns:
+                生成的图片 numpy array (num_images, 32, 32, 3)
+            """
+            if seed is not None:
+                torch.manual_seed(seed + self.worker_id)  # 确保每个 Worker 的种子不同
+
+            with torch.no_grad():
+                # 生成随机噪声
+                z = torch.randn(num_images, self.latent_dim).to(self.device)
+
+                # 生成图片
+                fake_images = self.model(z)
+
+                # 转换为 numpy
+                fake_images = fake_images.cpu().numpy()
+
+                # 从 [-1, 1] 转换到 [0, 255]
+                fake_images = ((fake_images + 1) / 2 * 255).astype(np.uint8)
+
+                # 转换维度 (N, C, H, W) -> (N, H, W, C)
+                fake_images = np.transpose(fake_images, (0, 2, 3, 1))
+
+            print(f"[GeneratorWorker {self.worker_id}] 生成 {num_images} 张图片")
+            return fake_images
+
+        def save_images(self, images, save_dir, start_idx=0):
+            """
+            保存生成的图片
+
+            Args:
+                images: 图片数组 (N, H, W, C)
+                save_dir: 保存目录
+                start_idx: 起始索引（用于避免文件名冲突）
+
+            Returns:
+                保存的文件路径列表
+            """
+            import matplotlib.pyplot as plt
+
+            os.makedirs(save_dir, exist_ok=True)
+
+            saved_files = []
+            for i, img in enumerate(images):
+                filename = f'{save_dir}/generated_{start_idx + i:04d}.png'
+                plt.imsave(filename, img)
+                saved_files.append(filename)
+
+            print(f"[GeneratorWorker {self.worker_id}] 保存 {len(images)} 张图片到 {save_dir}")
+            return saved_files
+
+except ImportError:
+    # 如果 miniray 不可用，跳过分布式 Worker
+    ImageGeneratorWorker = None
+    print("[Warning] miniray 不可用，分布式生成功能将不可用")

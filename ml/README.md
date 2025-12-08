@@ -14,7 +14,17 @@ ml/                           # 外部 ML 模块目录
 ├── train.py                 # 训练入口（单机 + 分布式）
 ├── generate.py              # 图片生成入口（单机 + 分布式）
 ├── requirements.txt         # ML 依赖
+├── utils/                   # 工具模块
+│   └── data_utils.py        # 数据工具
 └── README.md                # 本文件
+```
+
+**⭐ 参数服务器已集成到 Mini-Ray 核心**：
+```
+python/miniray/ps/           # Mini-Ray 参数服务器模块
+├── __init__.py              # 模块导出
+├── parameter_server.py      # ParameterServer Actor
+└── strategies.py            # 参数聚合策略（平均、加权、动量）
 ```
 
 ## 📦 安装依赖
@@ -333,6 +343,173 @@ miniray.shutdown()
 # 可进一步加速训练
 ```
 
+## ⭐ ParameterServer - 轻量级参数服务器
+
+### 概述
+
+为了避免每次写新模型时重复「参数收集 + 聚合 + 下发」的逻辑，我们提供了**轻量级 ParameterServer Actor**。
+
+**特点**：
+- ✅ 通用：支持任意模型（GAN、ResNet、BERT 等）
+- ✅ 轻量：~100 行代码，无额外依赖
+- ✅ 可扩展：支持多种聚合策略（平均、加权、动量）
+- ✅ 易用：一行代码完成参数同步
+
+### 快速开始
+
+```python
+from miniray.ps import create_parameter_server
+import miniray
+
+# 1. 创建 ParameterServer
+ps = create_parameter_server('average')  # 可选: 'momentum', 'weighted'
+
+# 2. 创建 Workers（需实现 get_weights() 和 set_weights() 方法）
+workers = [MyWorker.remote(i) for i in range(4)]
+
+# 3. 训练循环中同步参数
+for epoch in range(epochs):
+    # 训练...
+    if (epoch + 1) % sync_interval == 0:
+        ps.sync_from_workers.remote(workers)  # 一行搞定！
+```
+
+### 支持的聚合策略
+
+#### 1. 平均策略（默认，最常用）
+```python
+ps = create_parameter_server('average')
+```
+- 简单平均所有 Worker 的参数
+- 适用于数据均匀分布的场景
+
+#### 2. 加权平均策略
+```python
+ps = create_parameter_server('weighted')
+
+# 设置各 Worker 的权重（如样本数量）
+miniray.get(ps.set_worker_weight.remote(0, 1000))  # Worker 0 有 1000 个样本
+miniray.get(ps.set_worker_weight.remote(1, 2000))  # Worker 1 有 2000 个样本
+```
+- 按样本数量加权平均
+- 适用于数据不均匀分布的场景
+
+#### 3. 动量策略
+```python
+ps = create_parameter_server('momentum', momentum=0.9)
+```
+- 使用指数移动平均（EMA）聚合参数
+- 适用于需要平滑更新的场景
+
+### 在 GAN 训练中使用
+
+```python
+from ml.distributed_gan import DistributedGANTrainer
+
+trainer = DistributedGANTrainer(
+    num_workers=4,
+    sync_strategy='average'  # 🆕 指定同步策略
+)
+
+history, workers = trainer.train(
+    epochs=50,
+    sync_interval=5
+)
+```
+
+**修改前后对比**：
+
+```python
+# ❌ 修改前：手动实现同步逻辑（15 行代码）
+weight_lists = miniray.get([w.get_weights.remote() for w in workers])
+num_params = len(weight_lists[0])
+avg_weights = []
+for p in range(num_params):
+    tensors = [weight_lists[w][p] for w in range(self.num_workers)]
+    if torch.is_floating_point(tensors[0]):
+        avg = torch.stack(tensors).mean(0)
+    else:
+        avg = tensors[0]
+    avg_weights.append(avg)
+miniray.get([w.set_weights.remote(avg_weights) for w in workers])
+
+# ✅ 修改后：使用 ParameterServer（1 行代码）
+param_server.sync_from_workers.remote(workers)
+```
+
+### Worker 接口要求
+
+使用 ParameterServer 的 Worker 必须实现以下方法：
+
+```python
+@miniray.remote
+class MyWorker:
+    def get_weights(self) -> List[torch.Tensor]:
+        """返回模型参数列表（线性化）"""
+        return [p.detach().cpu() for p in self.model.parameters()]
+
+    def set_weights(self, weights: List[torch.Tensor]):
+        """从参数列表恢复模型参数"""
+        with torch.no_grad():
+            for param, new_weight in zip(self.model.parameters(), weights):
+                param.copy_(new_weight.to(self.device))
+```
+
+### 完整示例
+
+查看 `examples/parameter_server_demo.py` 获取完整的使用示例，包括：
+- 简单线性模型的分布式训练
+- 不同聚合策略的对比
+- GAN 训练中的应用
+
+运行示例：
+```bash
+python examples/parameter_server_demo.py
+```
+
+### API 参考
+
+#### ParameterServer
+
+**方法**：
+- `sync_from_workers(worker_refs)`: 从 Workers 同步参数（主要接口）
+- `pull_weights()`: 获取全局参数
+- `get_stats()`: 获取统计信息（版本号、同步次数等）
+- `set_worker_weight(worker_id, weight)`: 设置 Worker 权重（仅用于加权策略）
+
+**创建**：
+```python
+from miniray.ps import create_parameter_server
+
+ps = create_parameter_server('average')
+ps = create_parameter_server('momentum', momentum=0.95)
+ps = create_parameter_server('weighted')
+```
+
+### 扩展自定义策略
+
+可以通过继承 `SyncStrategy` 实现自定义聚合策略：
+
+```python
+from miniray.ps.strategies import SyncStrategy
+
+class MyCustomStrategy(SyncStrategy):
+    def aggregate(self, weight_lists):
+        # 实现自定义聚合逻辑
+        # weight_lists: [[worker0_params], [worker1_params], ...]
+        return aggregated_weights
+
+# 注册策略
+from miniray.ps.strategies import STRATEGIES
+STRATEGIES['custom'] = MyCustomStrategy
+
+# 使用
+from miniray.ps import create_parameter_server
+ps = create_parameter_server('custom')
+```
+
+---
+
 ## 📈 未来改进
 
 - [ ] 支持 DCGAN（卷积 GAN）架构
@@ -340,3 +517,4 @@ miniray.shutdown()
 - [ ] 添加 FID 评估指标
 - [ ] 支持条件 GAN（cGAN）
 - [ ] 梯度累积支持更大 batch size
+- [x] 轻量级 ParameterServer 支持
