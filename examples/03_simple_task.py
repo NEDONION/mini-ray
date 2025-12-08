@@ -39,6 +39,8 @@ def main():
     print("\n3. 提交任务: fibonacci(10)")
     task = core.Task()
     task.return_ref = core.ObjectRef()
+
+    # 注意：这里假设 C++ Task 接口接受 list[int] (来自 list(bytes))
     task.serialized_function = list(pickle.dumps(fibonacci))
     task.serialized_args = list(pickle.dumps((10,)))
 
@@ -53,20 +55,29 @@ def main():
     if task_to_execute:
         print("   ✓ 获取到任务")
 
-        # 执行任务
+        # 反序列化函数和参数
+        # 注意：这里需要将 list[int] (C++ 返回) 转换回 bytes 才能反序列化
         func = pickle.loads(bytes(task_to_execute.serialized_function))
         args = pickle.loads(bytes(task_to_execute.serialized_args))
+
+        # 执行任务
         result = func(*args)
         print(f"   ✓ 执行结果: fibonacci(10) = {result}")
 
         # 存储结果
         result_data = pickle.dumps(result)
-        worker.put_object(task_to_execute.return_ref, list(result_data))
+
+        # 🟢 修复点 (第 64 行): put_object 期望 bytes，直接传入 result_data
+        worker.put_object(task_to_execute.return_ref, result_data)
         print("   ✓ 结果已存储")
 
-        # 获取结果
+        # 获取结果 (假设 get_object 返回的是 Buffer，我们使用 .data() 提取 bytes)
         retrieved_result_data = worker.get_object(task_to_execute.return_ref)
-        retrieved_result = pickle.loads(retrieved_result_data)
+
+        # 假设 get_object 返回 Buffer，我们需要提取 bytes
+        data_bytes = retrieved_result_data.data() if hasattr(retrieved_result_data, 'data') else retrieved_result_data
+
+        retrieved_result = pickle.loads(data_bytes)
         print(f"   ✓ 获取结果: {retrieved_result}")
     else:
         print("   ✗ 没有获取到任务")
