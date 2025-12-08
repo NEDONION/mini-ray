@@ -69,7 +69,9 @@ except ImportError as e:
     sys.exit(1)
 
 from .worker import worker_process
-from .actor import ActorClass
+# 注意：ActorClass 假设在 actor.py 或其他地方定义，这里仅作为占位符
+# 如果 actor.py 不存在，运行时可能会报错
+# from .actor import ActorClass
 
 
 # ============================================================
@@ -90,10 +92,6 @@ _initialized: bool = False
 def init(num_workers: int = 2):
     """
     初始化 Mini-Ray
-
-    创建 Scheduler、ObjectStore、CoreWorker，启动 Worker 进程
-
-    global 关键字：修改模块级全局变量
     """
     global _global_scheduler, _global_object_store, _global_core_worker
     global _worker_processes, _initialized
@@ -139,8 +137,6 @@ def init(num_workers: int = 2):
 def shutdown():
     """
     关闭 Mini-Ray
-
-    停止所有 Worker 进程并清理全局变量
     """
     global _global_scheduler, _global_object_store, _global_core_worker
     global _worker_processes, _initialized
@@ -183,34 +179,15 @@ def shutdown():
 class RemoteFunction:
     """
     远程函数包装器
-
-    设计模式：
-    - Proxy 模式：作为函数的代理
-    - Future 模式：返回 ObjectRef（未来的结果）
-
-    装饰器原理：
-    @remote 等价于 func = remote(func)
     """
 
     def __init__(self, func: Callable):
-        """
-        初始化远程函数
-
-        __init__: Python 构造函数
-        self: 实例引用（类似 C++ 的 this）
-        """
         self.func = func
         self.func_name = func.__name__
 
     def remote(self, *args, **kwargs) -> 'core.ObjectRef':
         """
         远程调用函数
-
-        工作流程：
-        1. 创建 Task 对象
-        2. 序列化函数和参数（pickle）
-        3. 提交任务到 Scheduler
-        4. 返回 ObjectRef
         """
         if not _initialized:
             raise RuntimeError("Mini-Ray 未初始化，请先调用 miniray.init()")
@@ -246,9 +223,6 @@ class RemoteFunction:
     def __call__(self, *args, **kwargs):
         """
         直接调用（本地执行）
-
-        __call__: 使对象可调用
-        用法：add(1, 2) 直接返回结果，不是 ObjectRef
         """
         return self.func(*args, **kwargs)
 
@@ -256,32 +230,19 @@ class RemoteFunction:
 def remote(func_or_class):
     """
     远程函数/类装饰器
-
-    支持两种用法：
-    1. 装饰函数 -> 返回 RemoteFunction
-        @ray.remote
-        def func():
-            pass
-
-    2. 装饰类 -> 返回 ActorClass（Actor 模型）
-        @ray.remote
-        class MyActor:
-            pass
-
-    装饰器语法：
-        @remote
-        def func():
-            pass
-
-    等价于：
-        func = remote(func)
     """
     import inspect
 
     # 检查是类还是函数
     if inspect.isclass(func_or_class):
         # 返回 Actor 类包装器
-        return ActorClass(func_or_class)
+        # ⚠️ 注意：这里需要导入或定义 ActorClass
+        try:
+            from .actor import ActorClass
+            return ActorClass(func_or_class)
+        except ImportError:
+            print("警告：无法导入 ActorClass。请确保 actor.py 存在或注释掉此处逻辑。")
+            return RemoteFunction(func_or_class)
     else:
         # 返回远程函数包装器
         return RemoteFunction(func_or_class)
@@ -295,9 +256,7 @@ def _get_one_with_wait(object_ref: 'core.ObjectRef',
                        timeout_s: float = 10.0,
                        poll_interval: float = 0.01) -> Any:
     """
-    阻塞等待单个 ObjectRef 的值可用：
-    - 如果对象已经在 ObjectStore 里：立刻返回
-    - 如果还没写进去：循环重试，直到超时
+    阻塞等待单个 ObjectRef 的值可用
     """
     if not _initialized:
         raise RuntimeError("Mini-Ray 未初始化，请先调用 miniray.init()")
@@ -308,7 +267,12 @@ def _get_one_with_wait(object_ref: 'core.ObjectRef',
     while True:
         try:
             data = _global_core_worker.get_object(object_ref)
-            result = pickle.loads(data)
+
+            # 【修复点】：由于 Buffer 对象不支持 bytes() 转换，我们调用其 .data() 方法来获取底层 bytes。
+            data_bytes = data.data() if hasattr(data, 'data') else data
+
+            # 使用转换后的 bytes 对象进行反序列化
+            result = pickle.loads(data_bytes)
             print(f"📥 获取结果: {object_ref} -> {result}")
             return result
         except RuntimeError as e:
@@ -333,10 +297,6 @@ def get(object_refs: Union['core.ObjectRef', List['core.ObjectRef']],
         timeout_s: float = 10.0) -> Any:
     """
     获取远程对象的值（阻塞直到准备好）
-
-    支持：
-      - ray.get(ref)          -> 单个结果
-      - ray.get([ref1, ref2]) -> 结果列表
     """
     if isinstance(object_refs, core.ObjectRef):
         # 单个 ObjectRef

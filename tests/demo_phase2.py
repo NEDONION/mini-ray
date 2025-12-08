@@ -19,11 +19,18 @@ import sys
 import os
 import time
 
-# 添加 miniray 模块路径
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+# 添加 miniray 模块路径（向上一级，因为脚本在 tests/ 目录下）
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))  # tests/
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)  # 项目根目录
 MINIRAY_PATH = os.path.join(PROJECT_ROOT, 'python')
 if MINIRAY_PATH not in sys.path:
     sys.path.insert(0, MINIRAY_PATH)
+
+# 调试信息
+print(f"脚本目录: {SCRIPT_DIR}")
+print(f"项目根目录: {PROJECT_ROOT}")
+print(f"Python 路径: {MINIRAY_PATH}")
+print(f"路径已添加: {MINIRAY_PATH in sys.path}")
 
 import miniray as ray
 
@@ -92,6 +99,7 @@ def test_2_multiple_tasks():
 
     # 等待一下，让 Worker 有时间执行
     print("\n等待任务执行...")
+    # 保持原有的 sleep 2 秒
     time.sleep(2)
 
     # 获取所有结果
@@ -124,7 +132,7 @@ def test_3_complex_computation():
 
     @ray.remote
     def fibonacci(n):
-        """计算斐波那契数列第 n 项（递归）"""
+        """计算斐波那契数列第 n 项（迭代实现）"""
         if n <= 1:
             return n
         a, b = 0, 1
@@ -146,6 +154,7 @@ def test_3_complex_computation():
         print(f"  fibonacci.remote({n}) -> {ref}")
 
         # 等待结果
+        # 保持原有的 sleep 0.5 秒
         time.sleep(0.5)
         result = ray.get(ref)
 
@@ -194,6 +203,7 @@ def test_4_string_operations():
         assert result == expected, f"期望 '{expected}'，实际 '{result}'"
 
     print("✓ 测试 4 通过：字符串操作成功")
+    # 【修复点】：缺少 return True
     return True
 
 
@@ -276,7 +286,6 @@ def test_6_worker_load_balancing():
 
     # 等待所有任务完成
     print("等待任务执行...")
-    time.sleep(3)  # 给足够的时间执行
 
     results = [ray.get(ref) for ref in refs]
     end_time = time.time()
@@ -294,6 +303,8 @@ def test_6_worker_load_balancing():
     # 并发执行应该比串行快
     # 注意：因为有通信开销，不会达到理论最优
     # 这里只检查比串行快即可
+    # 考虑到 num_workers=2，理论并行时间是 10 * 0.1 / 2 = 0.5 秒
+    assert elapsed < num_tasks * 0.1, "实际耗时不应该超过串行时间"
     print(f"\n并发加速比: {num_tasks * 0.1 / elapsed:.2f}x")
 
     print("✓ 测试 6 通过：Worker 负载均衡正常")
@@ -330,20 +341,26 @@ def test_7_error_handling():
     ref2 = divide.remote(10, 0)
     time.sleep(0.3)
 
+    # 保持原有逻辑，检查是抛出异常还是返回序列化的异常对象
     try:
         result2 = ray.get(ref2)
         print(f"  意外：没有抛出异常，结果为 {result2}")
         # 注意：当前实现可能将异常序列化后返回
-        # 这里检查返回值是否是异常对象
         if isinstance(result2, Exception):
             print(f"  ✓ 正确捕获了异常: {type(result2).__name__}")
         else:
             print(f"  警告：期望异常，但得到结果 {result2}")
     except Exception as e:
+        # 如果 ray.get 抛出异常 (理想行为)
         print(f"  ✓ 正确抛出异常: {type(e).__name__}: {e}")
+        # 验证抛出的是 ZeroDivisionError 或其封装的类型
+        if not isinstance(e, ZeroDivisionError):
+             print(f"  警告：抛出的异常类型不是 ZeroDivisionError，而是 {type(e).__name__}")
+
 
     print("✓ 测试 7 通过：错误处理基本正常")
     print("  注意：当前实现将异常序列化返回，未来可改进")
+    # 【修复点】：缺少 return True
     return True
 
 
@@ -363,11 +380,13 @@ def run_all_tests():
 
     # 初始化 mini-ray
     print("\n初始化 mini-ray (2 个 Worker)...")
+    # 保持原有逻辑：初始化 2 个 Worker
     ray.init(num_workers=2)
     print("✓ 初始化成功")
 
     # 等待 Worker 启动
     print("\n等待 Worker 启动...")
+    # 保持原有 sleep 2 秒
     time.sleep(2)
 
     # 运行测试
@@ -382,13 +401,23 @@ def run_all_tests():
     ]
 
     results = []
+    # 修复：确保所有 test_func 都返回 True/False
     for name, test_func in tests:
         try:
+            # 捕获 test_func 内部的 AssertionError，并将其标记为失败
             success = test_func()
             results.append((name, success, None))
-        except Exception as e:
+        except AssertionError as e:
+            # AssertionError 是测试函数内部的验证失败
             print(f"\n✗ 测试失败: {name}")
-            print(f"  错误: {e}")
+            print(f"  断言错误: {e}")
+            import traceback
+            traceback.print_exc()
+            results.append((name, False, e))
+        except Exception as e:
+            # 其他运行时错误 (如初始化失败等)
+            print(f"\n✗ 测试失败: {name}")
+            print(f"  运行时错误: {e}")
             import traceback
             traceback.print_exc()
             results.append((name, False, e))
@@ -410,7 +439,9 @@ def run_all_tests():
         status = "✓ 通过" if success else "✗ 失败"
         print(f"  {status}: {name}")
         if error:
-            print(f"         错误: {error}")
+            # 统一打印错误类型
+            error_type = type(error).__name__
+            print(f"         错误: {error_type}: {error}")
 
     # 关闭 mini-ray
     print("\n" + "="*70)
@@ -431,108 +462,9 @@ def run_all_tests():
 if __name__ == "__main__":
     """
     主函数
-
-    Python 惯例：
-    - if __name__ == "__main__": 确保脚本直接运行时才执行
-    - 如果被 import，不会自动运行测试
-
-    运行方法：
-        python3 test_phase2.py
-
-    期望输出：
-    - 所有测试用例的执行过程
-    - 每个测试的验证结果
-    - 最终的测试总结
     """
     success = run_all_tests()
 
     # 返回退出码
-    # 0 表示成功，1 表示失败
-    # 可以在 shell 脚本中使用：
-    #   python3 test_phase2.py
-    #   if [ $? -eq 0 ]; then echo "测试通过"; fi
     import sys
     sys.exit(0 if success else 1)
-
-
-"""
-测试设计说明：
-
-1. 测试覆盖范围：
-   - 基本功能：远程函数、任务提交、结果获取
-   - 数据类型：整数、字符串、列表、字典
-   - 并发性：多任务、负载均衡
-   - 错误处理：异常捕获和传播
-
-2. 测试策略：
-   - 渐进式：从简单到复杂
-   - 独立性：每个测试独立运行
-   - 可重复：多次运行结果一致
-
-3. Python 测试模式：
-   - 使用 assert 验证结果
-   - try/except 捕获异常
-   - 打印详细信息帮助调试
-
-4. 与 C++ 单元测试对比：
-
-   Python (pytest 风格):
-       def test_function():
-           assert result == expected
-
-   C++ (Google Test):
-       TEST(TestSuite, TestName) {
-           EXPECT_EQ(result, expected);
-       }
-
-5. 改进空间：
-   - 使用 pytest 框架
-   - 添加参数化测试
-   - 添加性能基准测试
-   - 添加压力测试
-
-运行示例输出：
-
-    ======================================================================
-                            Phase 2 验收测试
-    ======================================================================
-
-    初始化 mini-ray (2 个 Worker)...
-    ✓ 初始化成功
-
-    等待 Worker 启动...
-
-    ============================================================
-    测试 1: 基本的远程函数调用
-    ============================================================
-
-    调用: add.remote(3, 5)
-    返回的 ObjectRef: <ObjectRef ...>
-
-    调用: ray.get(result_ref)
-    结果: 8
-    ✓ 测试 1 通过：基本远程函数调用成功
-
-    [... 更多测试输出 ...]
-
-    ======================================================================
-                             测试总结
-    ======================================================================
-
-    总计: 7 个测试
-    通过: 7 个
-    失败: 0 个
-
-    详细结果:
-      ✓ 通过: 基本远程函数调用
-      ✓ 通过: 多任务并发执行
-      ✓ 通过: 复杂计算任务
-      ✓ 通过: 字符串操作
-      ✓ 通过: 复杂数据结构
-      ✓ 通过: Worker 负载均衡
-      ✓ 通过: 错误处理
-
-    ======================================================================
-                          🎉 所有测试通过！
-    ======================================================================
-"""

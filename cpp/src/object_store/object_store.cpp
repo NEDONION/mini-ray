@@ -247,10 +247,16 @@ bool ObjectStore::allocate_data_region(size_t size_needed, size_t& slot_offset) 
 
     // 我们采用 First Fit 策略：找到第一个足够大的块
     size_t current_offset = layout_->header.free_list_head_offset.load(std::memory_order_relaxed);
-    size_t prev_offset = 0; // 追踪前一个块的偏移
+    size_t prev_offset = (size_t)-1; // 使用 -1 表示"没有前驱"（而不是 0）
 
     // 遍历 Free List
-    while (current_offset != 0) {
+    // 注意：初始化时，头部指向偏移 0，这是一个合法的空闲块
+    // 我们需要至少检查一次，即使 current_offset == 0
+    bool first_iteration = true;
+
+    while (first_iteration || current_offset != 0) {
+        first_iteration = false;
+
         FreeBlock* current_block = reinterpret_cast<FreeBlock*>(layout_->data_region + current_offset);
 
         if (current_block->size >= aligned_size_needed) {
@@ -271,8 +277,8 @@ bool ObjectStore::allocate_data_region(size_t size_needed, size_t& slot_offset) 
                 remainder_block->next_offset = current_block->next_offset; // 剩余块继承下一个指针
 
                 // 更新链表：将前一个块指向剩余块
-                if (prev_offset == 0) {
-                    // 更新头部
+                if (prev_offset == (size_t)-1) {
+                    // 更新头部（当前块是第一个块）
                     layout_->header.free_list_head_offset.store(remainder_offset, std::memory_order_relaxed);
                 } else {
                     // 更新前一个块的 next_offset
@@ -284,8 +290,8 @@ bool ObjectStore::allocate_data_region(size_t size_needed, size_t& slot_offset) 
                 // 剩余空间太小，直接分配整个块 (牺牲一点内部碎片)
 
                 // 更新链表：前一个块跳过被分配的块
-                if (prev_offset == 0) {
-                    // 更新头部
+                if (prev_offset == (size_t)-1) {
+                    // 更新头部（当前块是第一个块）
                     layout_->header.free_list_head_offset.store(current_block->next_offset, std::memory_order_relaxed);
                 } else {
                     // 更新前一个块的 next_offset

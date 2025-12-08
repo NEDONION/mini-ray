@@ -7,14 +7,16 @@ Phase 1 验收测试：测试 C++ 核心模块
 import sys
 import os
 
-# 获取项目根目录（test_phase1.py 所在目录）
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+# 获取项目根目录（向上一级，因为脚本在 tests/ 目录下）
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))  # tests/
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)  # 项目根目录
 # 添加 python/miniray 目录到路径（_miniray_core.so 在这里）
 MINI_RAY_DIR = os.path.join(PROJECT_ROOT, 'python', 'miniray')
 if MINI_RAY_DIR not in sys.path:
     sys.path.insert(0, MINI_RAY_DIR)
 
 # 调试信息（可选，帮助定位问题）
+print(f"脚本目录: {SCRIPT_DIR}")
 print(f"项目根目录: {PROJECT_ROOT}")
 print(f"Mini-Ray 目录: {MINI_RAY_DIR}")
 print(f"模块路径已添加: {MINI_RAY_DIR in sys.path}")
@@ -42,7 +44,8 @@ def main():
 
     # 3. 获取数据
     print("\n3. 获取数据")
-    retrieved = store.get(ref)
+    buffer = store.get(ref)
+    retrieved = buffer.data()  # Buffer.data() 返回 bytes
     print(f"   ✓ 获取数据: {retrieved}")
     assert retrieved == data, "数据应该一致"
 
@@ -55,7 +58,8 @@ def main():
 
     # 5. 获取并反序列化
     print("\n5. 获取并反序列化 Python 对象")
-    retrieved_serialized = store.get(ref2)
+    buffer = store.get(ref2)
+    retrieved_serialized = buffer.data()
     retrieved_python_data = pickle.loads(retrieved_serialized)
     print(f"   ✓ 获取数据: {retrieved_python_data}")
     assert retrieved_python_data == python_data, "Python 对象应该一致"
@@ -72,7 +76,8 @@ def main():
     # 7. 批量获取
     print("\n7. 批量获取对象")
     for i, ref in enumerate(refs):
-        data = pickle.loads(store.get(ref))
+        buffer = store.get(ref)
+        data = pickle.loads(buffer.data())
         assert data == f"Object {i}", f"对象 {i} 应该匹配"
     print(f"   ✓ 成功获取所有 {len(refs)} 个对象")
 

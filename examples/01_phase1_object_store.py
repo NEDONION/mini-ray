@@ -39,7 +39,8 @@ def example_basic():
     print(f"  ObjectRef: {ref}")
 
     # 获取数据
-    retrieved = store.get(ref)
+    retrieved_buffer = store.get(ref)
+    retrieved = retrieved_buffer.data()  # Buffer.data() 返回 bytes
     print(f"✓ 获取数据: {retrieved}")
 
     assert data == retrieved, "数据应该一致"
@@ -67,7 +68,8 @@ def example_python_objects():
     print(f"✓ 存储 Python 对象: {data}")
 
     # 获取并反序列化
-    retrieved_serialized = store.get(ref)
+    retrieved_buffer = store.get(ref)
+    retrieved_serialized = retrieved_buffer.data()
     retrieved_data = pickle.loads(retrieved_serialized)
     print(f"✓ 获取 Python 对象: {retrieved_data}")
 
@@ -100,7 +102,8 @@ def example_batch_operations():
     # 批量获取
     results = []
     for ref in refs:
-        data = pickle.loads(store.get(ref))
+        buffer = store.get(ref)
+        data = pickle.loads(buffer.data())
         results.append(data)
 
     print(f"✓ 批量获取了 {len(results)} 个对象")
@@ -180,7 +183,8 @@ def example_real_world_simulation():
     # 模拟主进程获取结果
     print("\n模拟主进程获取结果...")
     for i, ref in enumerate(refs):
-        result = pickle.loads(store.get(ref))
+        buffer = store.get(ref)
+        result = pickle.loads(buffer.data())
         print(f"  结果 {i + 1}: {result}")
 
     print("\n✓ 远程函数调用模拟完成！")

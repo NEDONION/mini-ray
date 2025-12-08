@@ -37,7 +37,7 @@ struct FreeBlock {
  */
 struct ObjectStoreLayout {
     // 容量限制（constexpr = 编译时常量）
-    static constexpr int    MAX_OBJECTS       = 10000;             ///< 最大对象数增加到 1万
+    static constexpr int    MAX_OBJECTS       = 1000;             ///< 最大对象数1000
     // 增加数据区大小到 4GB，以支持标准模型
     static constexpr size_t DATA_REGION_SIZE  = 4ULL * 1024 * 1024 * 1024; ///< 4GB
 

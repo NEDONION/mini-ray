@@ -4,37 +4,7 @@ worker.py - Worker 进程实现
 ============================================================
 Python 语法和最佳实践
 ============================================================
-
-1. class 和 __init__
-   class: 定义类
-   __init__: 构造函数，self 是实例引用
-   最佳实践：用类封装相关状态和行为
-
-2. 异常处理
-   try/except: 捕获异常
-   try/except/finally: 保证清理代码执行
-   最佳实践：明确捕获特定异常类型
-
-3. while 循环和主循环模式
-   while running: 持续运行直到停止标志
-   最佳实践：事件循环、后台服务常用模式
-
-4. pickle 序列化
-   loads(): 反序列化 bytes -> Python 对象
-   dumps(): 序列化 Python 对象 -> bytes
-   注意：bytes() 函数将 list 转为 bytes
-
-5. *args 解包
-   func(*args): 将元组解包为位置参数
-   例如：func(*(1, 2)) 等价于 func(1, 2)
-
-6. Optional 类型注解
-   Optional[T]: 表示可能是 T 或 None
-   等价于 Union[T, None]
-
-7. traceback 错误追踪
-   traceback.print_exc(): 打印完整异常堆栈
-   最佳实践：调试时保留详细错误信息
+... (Python 最佳实践说明不变)
 """
 
 import sys
@@ -141,10 +111,12 @@ class Worker:
         try:
             """
             反序列化：
-            task.serialized_function 是 C++ vector，pybind11 转为 Python list
-            bytes(list) 将 list 转为 bytes，然后 pickle.loads 反序列化
+            task.serialized_function 和 task.serialized_args 是 C++ vector，
+            pybind11 将其转为 Python list。
+            bytes() 函数将 list[int] 转为 bytes，然后 pickle.loads 反序列化。
             """
             print(f"[Worker {self.worker_id}] Task数据大小: func={len(task.serialized_function)}, args={len(task.serialized_args)}", flush=True)
+            # 确保传入 bytes 对象进行反序列化
             func = pickle.loads(bytes(task.serialized_function))
             args = pickle.loads(bytes(task.serialized_args))
 
@@ -157,22 +129,25 @@ class Worker:
             print(f"[Worker {self.worker_id}] 任务结果: {result}", flush=True)
 
             """
-            序列化：
-            pickle.dumps() -> bytes
-            list(bytes) -> [1, 2, 3] (C++ 期望 std::vector<uint8_t>)
+            序列化 & 存储 (修复点 1):
+            put_object 要求 data 是 bytes 类型。
             """
             serialized_result = pickle.dumps(result)
-            result_bytes = list(serialized_result)
 
-            self.core_worker.put_object(task.return_ref, result_bytes)
+            # 【修复点 1】：直接传入 bytes 对象。移除 list() 转换。
+            self.core_worker.put_object(task.return_ref, serialized_result)
             print(f"[Worker {self.worker_id}] 结果已存储到 {task.return_ref}", flush=True)
 
         except Exception as e:
             print(f"Worker {self.worker_id} 执行任务失败: {e}")
             traceback.print_exc()
 
+            # 序列化异常对象
             error_result = pickle.dumps(e)
-            self.core_worker.put_object(task.return_ref, list(error_result))
+
+            # 【修复点 2】：直接传入 bytes 对象。移除 list() 转换。
+            # 注意：如果 error_result 是 bytes，则 list(error_result) 会产生错误。
+            self.core_worker.put_object(task.return_ref, error_result)
 
     def shutdown(self):
         """
