@@ -199,6 +199,29 @@ COCO2017              DRIVE       KITTI_Depth_Completion.tar  S3DIS             
 CUB200-2011           Flickr2K    LaSOT                       SemanticKITTI           cifar-100            vangogh2photo.zip
 ```
 
+### GPU Server Training/Inference Demo
+- **Dataset (CIFAR-10)**
+  - 60k 32×32 RGB images, 10 classes.
+- **GPU (RTX 5090)**
+  - 32GB VRAM, high-throughput CUDA/FP16/BF16.
+- **Model (GAN)**
+  - GAN: minimax adversarial generator–discriminator training.
+  ![](https://raw.githubusercontent.com/NEDONION/my-pics-space/main/20251209004034.png)
+
+```bash
+# Single-Node Multi-Process Training
+python -m ml.gan.train --mode distributed --workers 8 --epochs 100 --sync-interval 5
+```
+![](https://raw.githubusercontent.com/NEDONION/my-pics-space/main/20251209003856.png)
+
+```bash
+# Single-Node Multi-Process Inference
+python -m ml.gan.generate --model ./models/gan/worker_0/generator_0.pth --num-images 10 --distributed --workers 4
+```
+![](https://raw.githubusercontent.com/NEDONION/my-pics-space/main/20251209003845.png)
+
+显存使用情况 `nvtop`
+![](https://raw.githubusercontent.com/NEDONION/my-pics-space/main/20251209004214.png)
 
 ### 验证安装
 

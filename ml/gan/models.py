@@ -128,6 +128,7 @@ class GANTrainer:
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))  # 归一化到 [-1, 1]
         ])
 
+        # 这里能不能指定路径加载。比如说从 data_utils.py 的返回值里知道data 路径
         dataset = torchvision.datasets.CIFAR10(
             root='./data',
             train=True,
