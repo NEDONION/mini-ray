@@ -24,79 +24,99 @@ if _python_path not in sys.path:
 def train_single(args):
     """单机训练"""
     from ml.gan.models import GANTrainer
+    from miniray import track_training_job
 
     print("\n" + "=" * 60)
     print("单机 GAN 训练")
     print("=" * 60)
 
-    trainer = GANTrainer(
-        latent_dim=args.latent_dim,
-        lr=args.lr,
-        device=args.device
-    )
+    # 使用 Dashboard 跟踪注解
+    @track_training_job(name=f"Single GAN Training - {args.job_id}",
+                        description=f"单机 GAN 训练任务 - {args.job_id}")
+    def run_training():
+        trainer = GANTrainer(
+            latent_dim=args.latent_dim,
+            lr=args.lr,
+            device=args.device
+        )
 
-    history = trainer.train(
-        epochs=args.epochs,
-        batch_size=args.batch_size,
-        job_id=args.job_id
-    )
+        history = trainer.train(
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            job_id=args.job_id
+        )
 
-    # 保存模型
-    if args.save_dir:
-        trainer.save_models(args.save_dir)
+        # 保存模型
+        if args.save_dir:
+            trainer.save_models(args.save_dir)
 
-    print("\n" + "=" * 60)
-    print("单机训练完成！")
-    print(f"最终 G_loss: {history['g_loss'][-1]:.4f}")
-    print(f"最终 D_loss: {history['d_loss'][-1]:.4f}")
-    print("=" * 60)
+        print("\n" + "=" * 60)
+        print("单机训练完成！")
+        print(f"最终 G_loss: {history['g_loss'][-1]:.4f}")
+        print(f"最终 D_loss: {history['d_loss'][-1]:.4f}")
+        print("=" * 60)
+
+        return history
+
+    history = run_training()
+    return history
 
 
 def train_distributed(args):
     """分布式训练"""
     import miniray
     from ml.gan.distributed_trainer import GANTrainer
+    from miniray import track_training_job
 
     print("\n" + "=" * 60)
     print("分布式 GAN 训练")
     print("=" * 60)
 
-    # 初始化 miniray
-    miniray.init(num_workers=args.workers)
+    # 使用 Dashboard 跟踪注解
+    @track_training_job(name=f"Distributed GAN Training - {args.job_id}",
+                        description=f"分布式 GAN 训练任务 - {args.job_id}, Workers: {args.workers}")
+    def run_distributed_training():
+        # 初始化 miniray
+        miniray.init(num_workers=args.workers)
 
-    try:
-        trainer = GANTrainer(
-            num_workers=args.workers,
-            latent_dim=args.latent_dim,
-            lr=args.lr,
-            sync_interval=args.sync_interval,
-            sync_strategy=args.sync_strategy
-        )
+        try:
+            trainer = GANTrainer(
+                num_workers=args.workers,
+                latent_dim=args.latent_dim,
+                lr=args.lr,
+                sync_interval=args.sync_interval,
+                sync_strategy=args.sync_strategy
+            )
 
-        result = trainer.train(
-            epochs=args.epochs,
-            batch_size=args.batch_size
-        )
+            result = trainer.train(
+                epochs=args.epochs,
+                batch_size=args.batch_size
+            )
 
-        # 保存模型
-        if args.save_dir:
-            print(f"\n保存模型到 {args.save_dir}...")
-            save_futures = [
-                w.save_models.remote(f"{args.save_dir}/worker_{i}")
-                for i, w in enumerate(trainer.workers)
-            ]
-            results = miniray.get(save_futures)
-            for msg in results:
-                print(msg)
+            # 保存模型
+            if args.save_dir:
+                print(f"\n保存模型到 {args.save_dir}...")
+                save_futures = [
+                    w.save_models.remote(f"{args.save_dir}/worker_{i}")
+                    for i, w in enumerate(trainer.workers)
+                ]
+                results = miniray.get(save_futures)
+                for msg in results:
+                    print(msg)
 
-        print("\n" + "=" * 60)
-        print("分布式训练完成！")
-        print(f"总 epochs: {result['num_epochs']}")
-        print("=" * 60)
+            print("\n" + "=" * 60)
+            print("分布式训练完成！")
+            print(f"总 epochs: {result['num_epochs']}")
+            print("=" * 60)
 
-    finally:
-        trainer.shutdown()
-        miniray.shutdown()
+            return result
+
+        finally:
+            trainer.shutdown()
+            miniray.shutdown()
+
+    result = run_distributed_training()
+    return result
 
 
 def main():

@@ -62,7 +62,22 @@ def get_tasks():
         JSON 格式的任务列表
     """
     limit = 50  # 最多返回 50 个任务
-    tasks = collector.get_tasks(limit=limit)
+
+    # 从持久化存储获取任务
+    try:
+        storage = collector._storage
+        all_tasks = storage.get_all_tasks()
+        # 按更新时间排序，最新的在前
+        sorted_tasks = sorted(all_tasks, key=lambda x: x.get('updated_at', 0), reverse=True)
+        tasks = sorted_tasks[:limit]
+    except:
+        # 备用方案：直接从events模块获取
+        from ..events import get_shared_storage
+        storage = get_shared_storage()
+        all_tasks = storage.get_all_tasks()
+        # 按更新时间排序，最新的在前
+        sorted_tasks = sorted(all_tasks, key=lambda x: x.get('updated_at', 0), reverse=True)
+        tasks = sorted_tasks[:limit]
 
     return jsonify({
         'tasks': tasks,
@@ -114,7 +129,26 @@ def get_training_jobs():
     Returns:
         JSON 格式的训练任务列表
     """
-    jobs = collector.get_training_jobs(limit=50)
+    # 从持久化存储获取训练任务
+    try:
+        storage = collector._storage
+        all_tasks = storage.get_all_tasks()
+        # 过滤出训练任务
+        training_jobs = [task for task in all_tasks if task.get('type') == 'training']
+        # 按更新时间排序，最新的在前
+        sorted_jobs = sorted(training_jobs, key=lambda x: x.get('updated_at', 0), reverse=True)
+        jobs = sorted_jobs[:50]
+    except:
+        # 备用方案：直接从events模块获取
+        from ..events import get_shared_storage
+        storage = get_shared_storage()
+        all_tasks = storage.get_all_tasks()
+        # 过滤出训练任务
+        training_jobs = [task for task in all_tasks if task.get('type') == 'training']
+        # 按更新时间排序，最新的在前
+        sorted_jobs = sorted(training_jobs, key=lambda x: x.get('updated_at', 0), reverse=True)
+        jobs = sorted_jobs[:50]
+
     return jsonify({
         'jobs': jobs,
         'total': len(jobs)

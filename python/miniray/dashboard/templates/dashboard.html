@@ -3,560 +3,552 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mini-Ray Monitor Dashboard</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-            color: white;
-            padding: 12px 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .header h1 {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .header .subtitle {
-            font-size: 12px;
-            opacity: 0.9;
-            margin-top: 3px;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 15px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        .card-title {
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: #1890ff;
-            border-left: 3px solid #1890ff;
-            padding-left: 8px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 8px;
-        }
-
-        .info-item {
-            padding: 6px 8px;
-            background: #fafafa;
-            border-radius: 4px;
-        }
-
-        .info-label {
-            font-size: 11px;
-            color: #666;
-            margin-bottom: 3px;
-        }
-
-        .info-value {
-            font-size: 13px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .progress-bar-container {
-            margin-bottom: 10px;
-        }
-
-        .progress-label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            margin-bottom: 4px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 18px;
-            background: #f0f0f0;
-            border-radius: 3px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #52c41a 0%, #389e0d 100%);
-            transition: width 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding-right: 8px;
-            color: white;
-            font-size: 10px;
-            font-weight: 600;
-        }
-
-        .progress-fill.warning {
-            background: linear-gradient(90deg, #faad14 0%, #d48806 100%);
-        }
-
-        .progress-fill.danger {
-            background: linear-gradient(90deg, #ff4d4f 0%, #cf1322 100%);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 6px 8px;
-            text-align: left;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        th {
-            background: #fafafa;
-            font-weight: 600;
-            font-size: 11px;
-            color: #666;
-        }
-
-        td {
-            font-size: 12px;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 10px;
-            font-weight: 600;
-        }
-
-        .status-running {
-            background: #e6f7ff;
-            color: #1890ff;
-        }
-
-        .status-completed {
-            background: #f6ffed;
-            color: #52c41a;
-        }
-
-        .status-failed {
-            background: #fff1f0;
-            color: #ff4d4f;
-        }
-
-        .status-idle {
-            background: #f0f0f0;
-            color: #666;
-        }
-
-        .status-busy {
-            background: #fff7e6;
-            color: #fa8c16;
-        }
-
-        .error-message {
-            color: #ff4d4f;
-            padding: 12px;
-            text-align: center;
-            background: #fff1f0;
-            border-radius: 4px;
-            font-size: 11px;
-        }
-
-        .empty-message {
-            color: #999;
-            padding: 20px;
-            text-align: center;
-            font-size: 11px;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 12px;
-            color: #999;
-            font-size: 11px;
-        }
-
-        .refresh-time {
-            font-size: 10px;
-            color: #999;
-            text-align: right;
-            margin-top: 8px;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🚀 Mini-Ray Monitor Dashboard</h1>
-        <div class="subtitle">Real-time System & Training Monitor</div>
-    </div>
-
-    <div class="container">
-        <!-- 系统硬件信息 -->
-        <div class="card">
-            <div class="card-title">💻 System Hardware Information</div>
-            <div id="systemInfo" class="loading">Loading system information...</div>
-        </div>
-
-        <!-- 实时资源使用 -->
-        <div class="card">
-            <div class="card-title">📊 Real-time Resource Usage</div>
-            <div id="systemMetrics" class="loading">Loading metrics...</div>
-        </div>
-
-        <!-- Mini-Ray 统计 -->
-        <div class="card">
-            <div class="card-title">⚡ Mini-Ray Statistics</div>
-            <div id="rayStats" class="loading">Loading stats...</div>
-        </div>
-
-        <!-- 训练任务 -->
-        <div class="card">
-            <div class="card-title">🎯 Training Jobs</div>
-            <div id="trainingJobs" class="loading">Loading training jobs...</div>
-        </div>
-
-        <!-- Workers -->
-        <div class="card">
-            <div class="card-title">👷 Workers Status</div>
-            <div id="workers" class="loading">Loading workers...</div>
-        </div>
-
-        <div class="refresh-time" id="refreshTime">Last updated: --</div>
-    </div>
-
+    <title>Mini-Ray Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script>
-        // API 基础地址
-        const API_BASE = '';
-
-        // 获取并显示系统硬件信息
-        async function loadSystemInfo() {
-            try {
-                const response = await fetch(`${API_BASE}/api/system-info`);
-                if (!response.ok) throw new Error('Failed to fetch system info');
-
-                const data = await response.json();
-                const container = document.getElementById('systemInfo');
-
-                const html = `
-                    <div class="grid">
-                        <div class="info-item">
-                            <div class="info-label">Operating System</div>
-                            <div class="info-value">${data.system || 'Unknown'}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Platform</div>
-                            <div class="info-value">${data.platform || 'Unknown'}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Architecture</div>
-                            <div class="info-value">${data.machine || 'Unknown'}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Processor</div>
-                            <div class="info-value">${data.processor || 'Unknown'}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">CPU Cores</div>
-                            <div class="info-value">${data.cpu_count || 0} Physical / ${data.cpu_count_logical || 0} Logical</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Total Memory</div>
-                            <div class="info-value">${(data.memory_total_gb || 0).toFixed(2)} GB</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Total Disk</div>
-                            <div class="info-value">${(data.disk_total_gb || 0).toFixed(2)} GB</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">GPU</div>
-                            <div class="info-value">${data.gpus && data.gpus.length > 0 ? data.gpus.map(g => g.name).join(', ') : 'No GPU detected'}</div>
-                        </div>
-                    </div>
-                `;
-
-                container.innerHTML = html;
-            } catch (error) {
-                document.getElementById('systemInfo').innerHTML =
-                    `<div class="error-message">❌ Error loading system info: ${error.message}</div>`;
-            }
-        }
-
-        // 获取并显示实时系统指标
-        async function loadSystemMetrics() {
-            try {
-                const response = await fetch(`${API_BASE}/api/metrics`);
-                if (!response.ok) throw new Error('Failed to fetch metrics');
-
-                const data = await response.json();
-                const metrics = data.latest;
-
-                if (!metrics) {
-                    throw new Error('No metrics data available');
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#6b7280',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                    }
                 }
-
-                const container = document.getElementById('systemMetrics');
-
-                // CPU
-                const cpuPercent = metrics.cpu_percent || 0;
-                const cpuClass = cpuPercent > 80 ? 'danger' : cpuPercent > 60 ? 'warning' : '';
-
-                // Memory
-                const memPercent = metrics.memory_percent || 0;
-                const memClass = memPercent > 80 ? 'danger' : memPercent > 60 ? 'warning' : '';
-
-                // Disk
-                const diskPercent = metrics.disk_percent || 0;
-                const diskClass = diskPercent > 80 ? 'danger' : diskPercent > 60 ? 'warning' : '';
-
-                const html = `
-                    <div class="progress-bar-container">
-                        <div class="progress-label">
-                            <span>CPU Usage</span>
-                            <span>${cpuPercent.toFixed(1)}%</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill ${cpuClass}" style="width: ${cpuPercent}%">${cpuPercent.toFixed(1)}%</div>
-                        </div>
-                    </div>
-
-                    <div class="progress-bar-container">
-                        <div class="progress-label">
-                            <span>Memory Usage</span>
-                            <span>${(metrics.memory_used_gb || 0).toFixed(2)} / ${(metrics.memory_total_gb || 0).toFixed(2)} GB</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill ${memClass}" style="width: ${memPercent}%">${memPercent.toFixed(1)}%</div>
-                        </div>
-                    </div>
-
-                    <div class="progress-bar-container">
-                        <div class="progress-label">
-                            <span>Disk Usage</span>
-                            <span>${(metrics.disk_used_gb || 0).toFixed(2)} / ${(metrics.disk_total_gb || 0).toFixed(2)} GB</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill ${diskClass}" style="width: ${diskPercent}%">${diskPercent.toFixed(1)}%</div>
-                        </div>
-                    </div>
-                `;
-
-                container.innerHTML = html;
-            } catch (error) {
-                document.getElementById('systemMetrics').innerHTML =
-                    `<div class="error-message">❌ Error loading metrics: ${error.message}</div>`;
             }
         }
-
-        // 获取并显示 Mini-Ray 统计
-        async function loadRayStats() {
-            try {
-                const response = await fetch(`${API_BASE}/api/stats`);
-                if (!response.ok) throw new Error('Failed to fetch stats');
-
-                const data = await response.json();
-                const container = document.getElementById('rayStats');
-
-                const html = `
-                    <div class="grid">
-                        <div class="info-item">
-                            <div class="info-label">Total Tasks</div>
-                            <div class="info-value">${data.tasks?.total || 0}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Running Tasks</div>
-                            <div class="info-value">${data.tasks?.running || 0}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Completed Tasks</div>
-                            <div class="info-value">${data.tasks?.completed || 0}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Failed Tasks</div>
-                            <div class="info-value">${data.tasks?.failed || 0}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Total Workers</div>
-                            <div class="info-value">${data.workers?.total || 0}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Active Workers</div>
-                            <div class="info-value">${data.workers?.active || 0}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Avg Task Duration</div>
-                            <div class="info-value">${(data.tasks?.avg_duration || 0).toFixed(3)}s</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Uptime</div>
-                            <div class="info-value">${formatUptime(data.uptime || 0)}</div>
-                        </div>
-                    </div>
-                `;
-
-                container.innerHTML = html;
-            } catch (error) {
-                document.getElementById('rayStats').innerHTML =
-                    `<div class="error-message">❌ Error loading stats: ${error.message}</div>`;
+    </script>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // 模拟API调用
+        const fetchSystemInfo = () => {
+            return fetch('/api/system-info').then(res => res.json());
+        };
+        
+        const fetchMetrics = () => {
+            return fetch('/api/metrics').then(res => res.json());
+        };
+        
+        const fetchTasks = () => {
+            return fetch('/api/tasks').then(res => res.json());
+        };
+        
+        const fetchTrainingJobs = () => {
+            return fetch('/api/training-jobs').then(res => res.json());
+        };
+        
+        // CPU/GPU使用情况卡片组件
+        const SystemMetricsCard = ({ title, value, max, color, icon, unit = '%' }) => {
+            const percentage = max ? Math.min(Math.round((value / max) * 100), 100) : Math.min(value, 100);
+            const width = `${percentage}%`;
+            
+            return React.createElement('div', { className: 'bg-white rounded-lg shadow p-6' },
+                React.createElement('div', { className: 'flex items-center justify-between' },
+                    React.createElement('div', null,
+                        React.createElement('p', { className: 'text-sm font-medium text-gray-600' }, title),
+                        React.createElement('p', { className: 'text-2xl font-bold text-gray-900' },
+                            value, unit,
+                            max && React.createElement('span', { className: 'text-sm text-gray-500 ml-2' }, '/ ', max, unit)
+                        )
+                    ),
+                    React.createElement('div', { className: color },
+                        React.createElement('i', { className: `fas ${icon}` })
+                    )
+                ),
+                React.createElement('div', { className: 'mt-4' },
+                    React.createElement('div', { className: 'w-full bg-gray-200 rounded-full h-2' },
+                        React.createElement('div', {
+                            className: `h-2 rounded-full ${color.replace('text-', 'bg-')}`,
+                            style: { width: width }
+                        })
+                    )
+                )
+            );
+        };
+        
+        // GPU指标卡片组件
+        const GPUMetricsCard = ({ gpu }) => {
+            const memoryPercentage = Math.min((gpu.used_memory / gpu.total_memory) * 100, 100);
+            const memoryWidth = `${memoryPercentage}%`;
+            const utilizationWidth = `${Math.min(gpu.utilization, 100)}%`;
+            
+            return React.createElement('div', { className: 'bg-white rounded-lg shadow p-6' },
+                React.createElement('h3', { className: 'text-lg font-medium text-gray-900 mb-4' },
+                    React.createElement('i', { className: 'fas fa-microchip mr-2' }), 
+                    'GPU ', gpu.index
+                ),
+                React.createElement('div', { className: 'space-y-3' },
+                    React.createElement('div', null,
+                        React.createElement('div', { className: 'flex justify-between text-sm' },
+                            React.createElement('span', null, '内存使用'),
+                            React.createElement('span', null, gpu.used_memory, ' MB / ', gpu.total_memory, ' MB')
+                        ),
+                        React.createElement('div', { className: 'w-full bg-gray-200 rounded-full h-2 mt-1' },
+                            React.createElement('div', {
+                                className: 'h-2 bg-blue-500 rounded-full',
+                                style: { width: memoryWidth }
+                            })
+                        )
+                    ),
+                    React.createElement('div', null,
+                        React.createElement('div', { className: 'flex justify-between text-sm' },
+                            React.createElement('span', null, '利用率'),
+                            React.createElement('span', null, gpu.utilization, '%')
+                        ),
+                        React.createElement('div', { className: 'w-full bg-gray-200 rounded-full h-2 mt-1' },
+                            React.createElement('div', {
+                                className: 'h-2 bg-green-500 rounded-full',
+                                style: { width: utilizationWidth }
+                            })
+                        )
+                    )
+                )
+            );
+        };
+        
+        // 任务详情模态框组件
+        const TaskDetailModal = ({ task, isOpen, onClose }) => {
+            if (!isOpen || !task) return null;
+            
+            return React.createElement('div', { 
+                className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50' 
+            },
+                React.createElement('div', { className: 'bg-white rounded-lg p-6 max-w-2xl w-full max-h-96 overflow-y-auto mx-4' },
+                    React.createElement('div', { className: 'flex justify-between items-center mb-4' },
+                        React.createElement('h3', { className: 'text-xl font-bold text-gray-900' },
+                            task.name || task.task_id
+                        ),
+                        React.createElement('button', {
+                            onClick: onClose,
+                            className: 'text-gray-400 hover:text-gray-600 text-2xl'
+                        }, '×')
+                    ),
+                    
+                    React.createElement('div', { className: 'grid grid-cols-2 gap-4 mb-4' },
+                        React.createElement('div', null,
+                            React.createElement('p', { className: 'text-sm text-gray-600' }, '任务ID'),
+                            React.createElement('p', { className: 'text-gray-900' }, task.task_id)
+                        ),
+                        React.createElement('div', null,
+                            React.createElement('p', { className: 'text-sm text-gray-600' }, '状态'),
+                            React.createElement('span', {
+                                className: `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    task.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                                    task.status === 'RUNNING' ? 'bg-blue-100 text-blue-800' :
+                                    task.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-red-100 text-red-800'
+                                }`
+                            }, task.status)
+                        ),
+                        React.createElement('div', null,
+                            React.createElement('p', { className: 'text-sm text-gray-600' }, '类型'),
+                            React.createElement('p', { className: 'text-gray-900 capitalize' }, task.type)
+                        ),
+                        React.createElement('div', null,
+                            React.createElement('p', { className: 'text-sm text-gray-600' }, '创建时间'),
+                            React.createElement('p', { className: 'text-gray-900' }, task.created_at_str)
+                        )
+                    ),
+                    
+                    task.result && React.createElement('div', { className: 'mb-4' },
+                        React.createElement('p', { className: 'text-sm text-gray-600' }, '结果'),
+                        React.createElement('pre', { 
+                            className: 'bg-gray-100 p-3 rounded text-sm overflow-x-auto' 
+                        }, JSON.stringify(task.result, null, 2))
+                    ),
+                    
+                    task.config && Object.keys(task.config).length > 0 && React.createElement('div', { className: 'mb-4' },
+                        React.createElement('p', { className: 'text-sm text-gray-600 mb-2' }, '配置'),
+                        React.createElement('pre', { 
+                            className: 'bg-gray-100 p-3 rounded text-sm overflow-x-auto' 
+                        }, JSON.stringify(task.config, null, 2))
+                    ),
+                    
+                    task.history && task.history.length > 0 && React.createElement('div', null,
+                        React.createElement('p', { className: 'text-sm text-gray-600 mb-2' }, '事件历史'),
+                        React.createElement('div', { className: 'space-y-2' },
+                            task.history.map((event, index) => 
+                                React.createElement('div', { 
+                                    key: index, 
+                                    className: 'bg-gray-50 p-2 rounded' 
+                                },
+                                    React.createElement('div', { className: 'flex justify-between text-sm' },
+                                        React.createElement('span', { className: 'font-medium' }, event.event_type),
+                                        React.createElement('span', { className: 'text-gray-500' }, event.timestamp_str)
+                                    ),
+                                    event.data && Object.keys(event.data).length > 0 && 
+                                        React.createElement('pre', {
+                                            className: 'text-xs bg-white p-1 mt-1 overflow-x-auto'
+                                        }, JSON.stringify(event.data, null, 2))
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        };
+        
+        // 任务卡片组件
+        const TaskCard = ({ task, onOpenDetail }) => {
+            const statusColors = {
+                COMPLETED: 'bg-green-100 text-green-800',
+                RUNNING: 'bg-blue-100 text-blue-800',
+                PENDING: 'bg-yellow-100 text-yellow-800',
+                FAILED: 'bg-red-100 text-red-800'
+            };
+            
+            const width = task.progress !== undefined ? `${Math.min(task.progress, 100)}%` : '0%';
+            
+            return React.createElement('div', {
+                    className: 'bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow cursor-pointer',
+                    onClick: () => onOpenDetail(task)
+                },
+                React.createElement('div', { className: 'flex justify-between items-start mb-2' },
+                    React.createElement('h4', { className: 'font-medium text-gray-900 truncate' },
+                        task.name || task.task_id
+                    ),
+                    React.createElement('span', {
+                        className: `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[task.status] || statusColors.PENDING}`
+                    }, task.status)
+                ),
+                React.createElement('div', { className: 'flex justify-between text-sm text-gray-600' },
+                    React.createElement('span', { className: 'capitalize' }, task.type),
+                    React.createElement('span', null, task.updated_at_str)
+                ),
+                task.progress !== undefined && task.progress > 0 && 
+                    React.createElement('div', { className: 'mt-2' },
+                        React.createElement('div', { className: 'w-full bg-gray-200 rounded-full h-2' },
+                            React.createElement('div', {
+                                className: 'h-2 bg-blue-500 rounded-full',
+                                style: { width: width }
+                            })
+                        ),
+                        React.createElement('p', { className: 'text-xs text-gray-500 mt-1' }, task.progress, '%')
+                    )
+            );
+        };
+        
+        // 主应用组件
+        const App = () => {
+            const [systemInfo, setSystemInfo] = useState(null);
+            const [metrics, setMetrics] = useState({ latest: {} });
+            const [tasks, setTasks] = useState([]);
+            const [trainingJobs, setTrainingJobs] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [selectedTask, setSelectedTask] = useState(null);
+            const [activeTab, setActiveTab] = useState('system');
+            
+            useEffect(() => {
+                const fetchData = async () => {
+                    try {
+                        setLoading(true);
+                        const [systemInfoData, metricsData, tasksData, trainingJobsData] = await Promise.all([
+                            fetchSystemInfo().catch(() => ({})),
+                            fetchMetrics().catch(() => ({ latest: {} })),
+                            fetchTasks().catch(() => ({ tasks: [] })),
+                            fetchTrainingJobs().catch(() => ({ jobs: [] }))
+                        ]);
+                        
+                        setSystemInfo(systemInfoData);
+                        setMetrics(metricsData);
+                        setTasks(tasksData.tasks || []);
+                        setTrainingJobs(trainingJobsData.jobs || []);
+                    } catch (error) {
+                        console.error('Error fetching data:', error);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                
+                fetchData();
+                const interval = setInterval(fetchData, 5000);
+                return () => clearInterval(interval);
+            }, []);
+            
+            const openTaskDetail = (task) => {
+                setSelectedTask(task);
+            };
+            
+            const closeTaskDetail = () => {
+                setSelectedTask(null);
+            };
+            
+            if (loading) {
+                return React.createElement('div', { className: 'flex items-center justify-center min-h-screen' },
+                    React.createElement('div', { className: 'text-center' },
+                        React.createElement('div', { 
+                            className: 'animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4' 
+                        }),
+                        React.createElement('p', { className: 'text-gray-600' }, '加载中...')
+                    )
+                );
             }
-        }
-
-        // 获取并显示训练任务
-        async function loadTrainingJobs() {
-            try {
-                const response = await fetch(`${API_BASE}/api/training-jobs`);
-                if (!response.ok) throw new Error('Failed to fetch training jobs');
-
-                const data = await response.json();
-                const jobs = data.jobs || [];
-                const container = document.getElementById('trainingJobs');
-
-                if (jobs.length === 0) {
-                    container.innerHTML = '<div class="empty-message">📭 No training jobs yet. Run a training task to see it here.</div>';
-                    return;
-                }
-
-                const html = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Job ID</th>
-                                <th>Name</th>
-                                <th>Status</th>
-                                <th>Progress</th>
-                                <th>Accuracy</th>
-                                <th>Loss</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${jobs.map(job => `
-                                <tr>
-                                    <td>${job.id}</td>
-                                    <td>${job.name}</td>
-                                    <td><span class="status-badge status-${job.status.toLowerCase()}">${job.status}</span></td>
-                                    <td>${(job.progress || 0).toFixed(1)}%</td>
-                                    <td>${job.metrics?.accuracy ? job.metrics.accuracy.toFixed(4) : 'N/A'}</td>
-                                    <td>${job.metrics?.loss ? job.metrics.loss.toFixed(4) : 'N/A'}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-
-                container.innerHTML = html;
-            } catch (error) {
-                document.getElementById('trainingJobs').innerHTML =
-                    `<div class="error-message">❌ Error loading training jobs: ${error.message}</div>`;
-            }
-        }
-
-        // 获取并显示 Workers
-        async function loadWorkers() {
-            try {
-                const response = await fetch(`${API_BASE}/api/workers`);
-                if (!response.ok) throw new Error('Failed to fetch workers');
-
-                const data = await response.json();
-                const workers = data.workers || [];
-                const container = document.getElementById('workers');
-
-                if (workers.length === 0) {
-                    container.innerHTML = '<div class="empty-message">👷 No workers registered yet.</div>';
-                    return;
-                }
-
-                const html = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Worker ID</th>
-                                <th>Status</th>
-                                <th>Last Updated</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${workers.map(worker => `
-                                <tr>
-                                    <td>Worker #${worker.worker_id}</td>
-                                    <td><span class="status-badge status-${worker.status.toLowerCase()}">${worker.status}</span></td>
-                                    <td>${new Date(worker.last_updated * 1000).toLocaleString('zh-CN')}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-
-                container.innerHTML = html;
-            } catch (error) {
-                document.getElementById('workers').innerHTML =
-                    `<div class="error-message">❌ Error loading workers: ${error.message}</div>`;
-            }
-        }
-
-        // 格式化运行时间
-        function formatUptime(seconds) {
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${hours}h ${minutes}m ${secs}s`;
-        }
-
-        // 更新刷新时间
-        function updateRefreshTime() {
-            document.getElementById('refreshTime').textContent =
-                `Last updated: ${new Date().toLocaleString('zh-CN')}`;
-        }
-
-        // 加载所有数据
-        async function loadAllData() {
-            await Promise.all([
-                loadSystemInfo(),
-                loadSystemMetrics(),
-                loadRayStats(),
-                loadTrainingJobs(),
-                loadWorkers()
-            ]);
-            updateRefreshTime();
-        }
-
-        // 页面加载时执行
-        loadAllData();
-
-        // 每5秒自动刷新（系统信息只加载一次，其他数据刷新）
-        setInterval(async () => {
-            await Promise.all([
-                loadSystemMetrics(),
-                loadRayStats(),
-                loadTrainingJobs(),
-                loadWorkers()
-            ]);
-            updateRefreshTime();
-        }, 5000);
+            
+            const currentTrainingJobs = trainingJobs.filter(job => job.status === 'RUNNING');
+            const completedTrainingJobs = trainingJobs.filter(job => job.status === 'COMPLETED');
+            const otherTasks = tasks.filter(task => !trainingJobs.some(job => job.task_id === task.task_id));
+            
+            return React.createElement('div', { className: 'min-h-screen bg-gray-50' },
+                // 头部
+                React.createElement('header', { className: 'bg-white shadow' },
+                    React.createElement('div', { className: 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8' },
+                        React.createElement('div', { className: 'flex justify-between items-center py-6' },
+                            React.createElement('div', null,
+                                React.createElement('h1', { className: 'text-3xl font-bold text-gray-900' },
+                                    React.createElement('i', { className: 'fas fa-chart-line mr-2' }), 
+                                    'Mini-Ray Dashboard'
+                                ),
+                                React.createElement('p', { className: 'text-gray-600 mt-1' }, '分布式计算框架监控面板')
+                            ),
+                            React.createElement('div', { className: 'flex items-center space-x-4' },
+                                React.createElement('div', { className: 'text-sm text-gray-600' },
+                                    React.createElement('i', { className: 'fas fa-sync-alt mr-1 animate-spin' }), 
+                                    '实时更新'
+                                ),
+                                React.createElement('div', { className: 'text-sm text-gray-600' },
+                                    new Date().toLocaleString('zh-CN')
+                                )
+                            )
+                        )
+                    )
+                ),
+                
+                // 导航标签
+                React.createElement('div', { className: 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6' },
+                    React.createElement('div', { className: 'border-b border-gray-200' },
+                        React.createElement('nav', { className: '-mb-px flex space-x-8' },
+                            [
+                                { id: 'system', name: '系统监控', icon: 'fa-tachometer-alt' },
+                                { id: 'training', name: '训练任务', icon: 'fa-graduation-cap' },
+                                { id: 'tasks', name: '所有任务', icon: 'fa-tasks' }
+                            ].map((tab) => 
+                                React.createElement('button', {
+                                    key: tab.id,
+                                    onClick: () => setActiveTab(tab.id),
+                                    className: `py-2 px-1 border-b-2 font-medium text-sm flex items-center ${
+                                        activeTab === tab.id
+                                            ? 'border-blue-500 text-blue-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`
+                                },
+                                    React.createElement('i', { className: `fas ${tab.icon} mr-2` }),
+                                    tab.name
+                                )
+                            )
+                        )
+                    )
+                ),
+                
+                // 主内容
+                React.createElement('main', { className: 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6' },
+                    activeTab === 'system' && React.createElement('div', { className: 'space-y-6' },
+                        // 系统指标卡片
+                        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6' },
+                            React.createElement(SystemMetricsCard, {
+                                title: 'CPU 使用率',
+                                value: metrics.latest.cpu_percent || 0,
+                                max: 100,
+                                color: 'text-blue-600',
+                                icon: 'fa-microchip'
+                            }),
+                            React.createElement(SystemMetricsCard, {
+                                title: '内存使用率',
+                                value: metrics.latest.memory_percent || 0,
+                                max: 100,
+                                color: 'text-green-600',
+                                icon: 'fa-memory'
+                            }),
+                            React.createElement(SystemMetricsCard, {
+                                title: '磁盘使用率',
+                                value: metrics.latest.disk_percent || 0,
+                                max: 100,
+                                color: 'text-yellow-600',
+                                icon: 'fa-hdd'
+                            }),
+                            React.createElement(SystemMetricsCard, {
+                                title: '任务总数',
+                                value: tasks.length,
+                                color: 'text-purple-600',
+                                icon: 'fa-tasks'
+                            })
+                        ),
+                        
+                        // 系统信息
+                        systemInfo && React.createElement('div', { className: 'bg-white rounded-lg shadow p-6' },
+                            React.createElement('h2', { className: 'text-xl font-bold text-gray-900 mb-4' },
+                                React.createElement('i', { className: 'fas fa-info-circle mr-2' }), 
+                                '系统信息'
+                            ),
+                            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' },
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: 'text-sm text-gray-600' }, '操作系统'),
+                                    React.createElement('p', { className: 'text-gray-900' }, systemInfo.system || 'Unknown')
+                                ),
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: 'text-sm text-gray-600' }, 'CPU 核心数'),
+                                    React.createElement('p', { className: 'text-gray-900' }, 
+                                        systemInfo.cpu_count || 0, ' 物理核心')
+                                ),
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: 'text-sm text-gray-600' }, '总内存'),
+                                    React.createElement('p', { className: 'text-gray-900' }, 
+                                        systemInfo.memory_total_gb ? 
+                                        `${systemInfo.memory_total_gb.toFixed(2)} GB` : 'Unknown')
+                                ),
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: 'text-sm text-gray-600' }, 'CPU 型号'),
+                                    React.createElement('p', { className: 'text-gray-900' }, 
+                                        systemInfo.processor || 'Unknown')
+                                ),
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: 'text-sm text-gray-600' }, '平台'),
+                                    React.createElement('p', { className: 'text-gray-900' }, 
+                                        systemInfo.platform || 'Unknown')
+                                ),
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: 'text-sm text-gray-600' }, '磁盘总容量'),
+                                    React.createElement('p', { className: 'text-gray-900' }, 
+                                        systemInfo.disk_total_gb ? 
+                                        `${systemInfo.disk_total_gb.toFixed(2)} GB` : 'Unknown')
+                                )
+                            )
+                        ),
+                        
+                        // GPU信息
+                        systemInfo && systemInfo.gpus && systemInfo.gpus.length > 0 && 
+                        React.createElement('div', { className: 'bg-white rounded-lg shadow p-6' },
+                            React.createElement('h2', { className: 'text-xl font-bold text-gray-900 mb-4' },
+                                React.createElement('i', { className: 'fas fa-video mr-2' }), 
+                                'GPU 信息'
+                            ),
+                            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' },
+                                systemInfo.gpus.map((gpu, index) => 
+                                    React.createElement(GPUMetricsCard, { 
+                                        key: index, 
+                                        gpu: { ...gpu, index } 
+                                    })
+                                )
+                            )
+                        )
+                    ),
+                    
+                    activeTab === 'training' && React.createElement('div', { className: 'space-y-6' },
+                        // 当前训练任务
+                        React.createElement('div', null,
+                            React.createElement('div', { className: 'flex items-center justify-between mb-4' },
+                                React.createElement('h2', { className: 'text-xl font-bold text-gray-900' },
+                                    React.createElement('i', { className: 'fas fa-running mr-2 text-blue-500' }), 
+                                    '当前训练任务'
+                                ),
+                                React.createElement('span', { 
+                                    className: 'bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full' 
+                                }, currentTrainingJobs.length, ' 个运行中')
+                            ),
+                            
+                            currentTrainingJobs.length > 0 ?
+                                React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' },
+                                    currentTrainingJobs.map((job, index) => 
+                                        React.createElement(TaskCard, {
+                                            key: index,
+                                            task: job,
+                                            onOpenDetail: openTaskDetail
+                                        })
+                                    )
+                                ) :
+                                React.createElement('div', { className: 'bg-white rounded-lg shadow p-8 text-center' },
+                                    React.createElement('i', { className: 'fas fa-check-circle text-4xl text-gray-400 mb-4' }),
+                                    React.createElement('h3', { className: 'text-lg font-medium text-gray-900 mb-2' }, 
+                                        '没有运行中的训练任务'),
+                                    React.createElement('p', { className: 'text-gray-500' }, 
+                                        '当前没有正在运行的训练任务')
+                                )
+                        ),
+                        
+                        // 历史训练任务
+                        React.createElement('div', null,
+                            React.createElement('div', { className: 'flex items-center justify-between mb-4' },
+                                React.createElement('h2', { className: 'text-xl font-bold text-gray-900' },
+                                    React.createElement('i', { className: 'fas fa-history mr-2 text-green-500' }), 
+                                    '历史训练任务'
+                                ),
+                                React.createElement('span', { 
+                                    className: 'bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full' 
+                                }, completedTrainingJobs.length, ' 个已完成')
+                            ),
+                            
+                            completedTrainingJobs.length > 0 ?
+                                React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' },
+                                    completedTrainingJobs.map((job, index) => 
+                                        React.createElement(TaskCard, {
+                                            key: index,
+                                            task: job,
+                                            onOpenDetail: openTaskDetail
+                                        })
+                                    )
+                                ) :
+                                React.createElement('div', { className: 'bg-white rounded-lg shadow p-8 text-center' },
+                                    React.createElement('i', { className: 'fas fa-book text-4xl text-gray-400 mb-4' }),
+                                    React.createElement('h3', { className: 'text-lg font-medium text-gray-900 mb-2' }, 
+                                        '没有历史训练任务'),
+                                    React.createElement('p', { className: 'text-gray-500' }, 
+                                        '暂无完成的训练任务记录')
+                                )
+                        )
+                    ),
+                    
+                    activeTab === 'tasks' && React.createElement('div', { className: 'space-y-6' },
+                        React.createElement('div', { className: 'flex items-center justify-between mb-4' },
+                            React.createElement('h2', { className: 'text-xl font-bold text-gray-900' },
+                                React.createElement('i', { className: 'fas fa-tasks mr-2 text-purple-500' }), 
+                                '所有任务'
+                            ),
+                            React.createElement('span', { 
+                                className: 'bg-purple-100 text-purple-800 text-sm px-3 py-1 rounded-full' 
+                            }, tasks.length, ' 个任务')
+                        ),
+                        
+                        tasks.length > 0 ?
+                            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' },
+                                tasks.map((task, index) => 
+                                    React.createElement(TaskCard, {
+                                        key: index,
+                                        task: task,
+                                        onOpenDetail: openTaskDetail
+                                    })
+                                )
+                            ) :
+                            React.createElement('div', { className: 'bg-white rounded-lg shadow p-8 text-center' },
+                                React.createElement('i', { className: 'fas fa-inbox text-4xl text-gray-400 mb-4' }),
+                                React.createElement('h3', { className: 'text-lg font-medium text-gray-900 mb-2' }, 
+                                    '没有任务'),
+                                React.createElement('p', { className: 'text-gray-500' }, 
+                                    '暂无任务记录')
+                            )
+                    )
+                ),
+                
+                // 任务详情模态框
+                React.createElement(TaskDetailModal, {
+                    task: selectedTask,
+                    isOpen: !!selectedTask,
+                    onClose: closeTaskDetail
+                })
+            );
+        };
+        
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
     </script>
 </body>
 </html>

@@ -102,6 +102,18 @@ from . import ps
 from . import train
 
 # ============================================================
+# 导入 Dashboard 模块
+# ============================================================
+# 轻量级 Dashboard，用于监控任务和系统指标
+from . import dashboard
+
+# ============================================================
+# 导入 Dashboard 跟踪装饰器
+# ============================================================
+# 提供用于跟踪任务的装饰器
+from .dashboard.tracking import track_training, track_training_job, track_inference_job, track_tuning_job
+
+# ============================================================
 # 定义公共 API（__all__）
 # ============================================================
 # __all__ 定义了 `from miniray import *` 时会导入哪些名称
@@ -125,4 +137,13 @@ __all__ = [
 
     # 训练框架模块
     'train',       # 通用分布式训练框架
+
+    # Dashboard 模块
+    'dashboard',   # Dashboard 监控界面
+
+    # Dashboard 跟踪装饰器
+    'track_training',      # 通用任务跟踪装饰器
+    'track_training_job',  # 训练任务跟踪装饰器
+    'track_inference_job', # 推理任务跟踪装饰器
+    'track_tuning_job',    # 调优任务跟踪装饰器
 ]

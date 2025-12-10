@@ -11,6 +11,10 @@ import psutil
 from typing import Dict, List, Any, Optional
 from collections import defaultdict
 from threading import Lock
+from enum import Enum
+
+# 导入事件系统
+from ..events import get_event_bus, TaskEventType, TaskEvent
 
 
 class MetricsCollector:
@@ -62,6 +66,27 @@ class MetricsCollector:
         # 启动时间
         self.start_time = time.time()
 
+        # 订阅事件
+        self._subscribe_to_events()
+
+    @property
+    def _storage(self):
+        """获取持久化存储实例"""
+        from ..events import get_shared_storage
+        return get_shared_storage()
+
+    def _subscribe_to_events(self):
+        """订阅任务事件"""
+        event_bus = get_event_bus()
+
+        def handle_task_event(event: TaskEvent):
+            # 事件会被持久化存储自动处理，这里可以添加额外的处理逻辑
+            pass
+
+        # 订阅所有任务相关事件
+        for event_type in TaskEventType:
+            event_bus.subscribe(event_type, handle_task_event)
+
     def record_task(
         self,
         task_id: str,
@@ -80,24 +105,42 @@ class MetricsCollector:
             result: 任务结果
             duration: 任务耗时
         """
-        task_info = {
-            'task_id': task_id,
+        # 发送事件到事件总线，会自动持久化
+        from ..events import get_event_bus, TaskEventType, TaskEvent
+
+        event_data = {
             'status': status,
             'config': config or {},
             'result': result,
             'duration': duration,
-            'timestamp': time.time(),
         }
 
-        # 更新或添加任务
-        existing_task = next((t for t in self.tasks if t['task_id'] == task_id), None)
-        if existing_task:
-            existing_task.update(task_info)
+        # 根据状态确定事件类型
+        if status == 'PENDING':
+            event_type = TaskEventType.TASK_SUBMITTED
+        elif status == 'RUNNING':
+            event_type = TaskEventType.TASK_STARTED
+        elif status == 'COMPLETED':
+            event_type = TaskEventType.TASK_COMPLETED
+        elif status == 'FAILED':
+            event_type = TaskEventType.TASK_FAILED
         else:
-            self.tasks.append(task_info)
+            # 对于其他状态，根据上下文推断
+            if status in ['STARTED', 'RUNNING']:
+                event_type = TaskEventType.TASK_STARTED
+            elif status in ['FINISHED', 'COMPLETED']:
+                event_type = TaskEventType.TASK_COMPLETED
+            else:
+                event_type = TaskEventType.TASK_SUBMITTED  # 默认为提交事件
 
-        # 更新计数器
-        self.task_counter[status] += 1
+        event = TaskEvent(
+            event_type=event_type,
+            task_id=task_id,
+            data=event_data
+        )
+
+        event_bus = get_event_bus()
+        event_bus.publish(event)
 
     def update_worker(self, worker_id: int, status: str, info: Optional[Dict] = None):
         """
@@ -173,16 +216,20 @@ class MetricsCollector:
         Returns:
             统计信息字典
         """
+        # 从持久化存储获取任务统计
+        storage = self._storage
+        all_tasks = storage.get_all_tasks()
+
         # 计算任务统计
-        total_tasks = len(self.tasks)
-        completed_tasks = sum(1 for t in self.tasks if t['status'] == 'COMPLETED')
-        failed_tasks = sum(1 for t in self.tasks if t['status'] == 'FAILED')
-        running_tasks = sum(1 for t in self.tasks if t['status'] == 'RUNNING')
-        pending_tasks = sum(1 for t in self.tasks if t['status'] == 'PENDING')
+        total_tasks = len(all_tasks)
+        completed_tasks = sum(1 for t in all_tasks if t.get('status') == 'COMPLETED')
+        failed_tasks = sum(1 for t in all_tasks if t.get('status') == 'FAILED')
+        running_tasks = sum(1 for t in all_tasks if t.get('status') == 'RUNNING')
+        pending_tasks = sum(1 for t in all_tasks if t.get('status') == 'PENDING')
 
         # 计算平均耗时
-        completed_durations = [t['duration'] for t in self.tasks
-                               if t['status'] == 'COMPLETED' and t['duration']]
+        completed_durations = [t.get('duration', 0) for t in all_tasks
+                               if t.get('status') == 'COMPLETED' and t.get('duration')]
         avg_duration = sum(completed_durations) / len(completed_durations) if completed_durations else 0
 
         # Worker 统计
@@ -228,7 +275,10 @@ class MetricsCollector:
         Returns:
             任务列表（最新的在前面）
         """
-        return sorted(self.tasks, key=lambda t: t['timestamp'], reverse=True)[:limit]
+        storage = self._storage
+        all_tasks = storage.get_all_tasks()
+        # 按更新时间排序，最新的在前
+        return sorted(all_tasks, key=lambda t: t.get('updated_at', 0), reverse=True)[:limit]
 
     def get_workers(self) -> List[Dict[str, Any]]:
         """
@@ -271,24 +321,48 @@ class MetricsCollector:
             config: 配置信息
             metrics: 训练指标
         """
-        job_info = {
-            'id': job_id,
+        # 发送事件到事件总线，会自动持久化
+        from ..events import get_event_bus, TaskEventType, TaskEvent
+
+        event_data = {
+            'type': 'training',
             'name': name,
             'status': status,
             'progress': progress,
             'config': config or {},
             'metrics': metrics or {},
-            'start_time': time.time(),
             'updated_at': time.time(),
         }
 
-        # 更新或添加任务
-        existing = next((j for j in self.training_jobs if j['id'] == job_id), None)
-        if existing:
-            existing.update(job_info)
-            existing['updated_at'] = time.time()
+        # 根据状态确定事件类型
+        if status.lower() in ['pending', 'submitted']:
+            event_type = TaskEventType.TASK_SUBMITTED
+        elif status.lower() in ['running', 'started']:
+            event_type = TaskEventType.TASK_STARTED
+            if progress > 0:
+                # 如果有进度信息，也发送进度事件
+                progress_event = TaskEvent(
+                    event_type=TaskEventType.TASK_PROGRESS,
+                    task_id=job_id,
+                    data={'progress': progress, 'status': status}
+                )
+                event_bus = get_event_bus()
+                event_bus.publish(progress_event)
+        elif status.lower() in ['completed', 'finished']:
+            event_type = TaskEventType.TASK_COMPLETED
+        elif status.lower() in ['failed', 'error']:
+            event_type = TaskEventType.TASK_FAILED
         else:
-            self.training_jobs.append(job_info)
+            event_type = TaskEventType.TASK_SUBMITTED  # 默认
+
+        event = TaskEvent(
+            event_type=event_type,
+            task_id=job_id,
+            data=event_data
+        )
+
+        event_bus = get_event_bus()
+        event_bus.publish(event)
 
     def add_training_log(self, job_id: str, log_line: str):
         """添加训练日志"""
@@ -303,7 +377,12 @@ class MetricsCollector:
 
     def get_training_jobs(self, limit: int = 50) -> List[Dict]:
         """获取训练任务列表"""
-        return sorted(self.training_jobs, key=lambda j: j['updated_at'], reverse=True)[:limit]
+        storage = self._storage
+        all_tasks = storage.get_all_tasks()
+        # 过滤出训练任务
+        training_tasks = [task for task in all_tasks if task.get('type') == 'training']
+        # 按更新时间排序，最新的在前
+        return sorted(training_tasks, key=lambda t: t.get('updated_at', 0), reverse=True)[:limit]
 
     def get_training_logs(self, job_id: str, limit: int = 100) -> List[Dict]:
         """获取训练日志"""
